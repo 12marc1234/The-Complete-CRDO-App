@@ -3905,6 +3905,7 @@ struct AuthTextFieldStyle: TextFieldStyle {
 }
 
 // MARK: - Modern Settings UI Components
+// Updated with beautiful modern design
 
 struct ModernSettingsCard<Content: View>: View {
     let content: Content
