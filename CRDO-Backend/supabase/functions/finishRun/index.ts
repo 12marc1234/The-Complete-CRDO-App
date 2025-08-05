@@ -13,6 +13,7 @@ interface FinishRunRequest {
   duration: number; // in seconds
   averageSpeed?: number; // in mph
   peakSpeed?: number; // in mph
+  coordinates?: Array<{ lat: number; lng: number; timestamp?: string }>;
 }
 
 interface StreakData {
@@ -20,14 +21,6 @@ interface StreakData {
   longest_streak: number;
   last_run_date: string;
   freeze_count: number;
-}
-
-interface Achievement {
-  user_id: string;
-  description: string;
-  points: number;
-  gems_balance: number;
-  created_at: string;
 }
 
 serve(async (req: Request) => {
@@ -68,12 +61,12 @@ serve(async (req: Request) => {
     }
 
     const body: FinishRunRequest = await req.json();
-    const { runId, distance, duration, averageSpeed, peakSpeed } = body;
+    const { runId, distance, duration, averageSpeed, peakSpeed, coordinates } = body;
 
     console.log(`[finishRun] Processing run ${runId} for user ${user.id}`);
 
     // Enhanced input validation
-    if (!distance || distance <= 0 || distance > 100) { // Max 100 miles
+    if (!distance || distance <= 0 || distance > 100) {
       return new Response(
         JSON.stringify({ 
           error: "Invalid distance", 
@@ -84,7 +77,7 @@ serve(async (req: Request) => {
       );
     }
 
-    if (!duration || duration <= 0 || duration > 86400) { // Max 24 hours
+    if (!duration || duration <= 0 || duration > 86400) {
       return new Response(
         JSON.stringify({ 
           error: "Invalid duration", 
@@ -96,9 +89,9 @@ serve(async (req: Request) => {
     }
 
     // Calculate speed in mph
-    const calculatedSpeed = (distance / duration) * 3600; // Convert to mph
-    const minPace = 0.5; // 0.5 mph minimum
-    const maxPace = 20; // 20 mph maximum
+    const calculatedSpeed = (distance / duration) * 3600;
+    const minPace = 0.5;
+    const maxPace = 20;
 
     if (calculatedSpeed < minPace && distance > 1) {
       return new Response(
@@ -114,7 +107,7 @@ serve(async (req: Request) => {
     // Calculate gems earned (1 gem per mile)
     const gemsEarned = Math.floor(distance);
     
-    // Anti-cheating: Basic speed validation (27 mph is roughly 12 m/s)
+    // Anti-cheating: Basic speed validation
     let isFlagged = false;
     if (averageSpeed && averageSpeed > 27) {
       isFlagged = true;
@@ -145,8 +138,71 @@ serve(async (req: Request) => {
 
     console.log(`[finishRun] Run ${runId} updated successfully`);
 
-    // Update or create streak
+    // Save route coordinates if provided
+    if (coordinates && coordinates.length > 0) {
+      console.log(`[finishRun] Saving route coordinates for run ${runId}`);
+      const { error: routeError } = await supabase
+        .from("run_routes")
+        .upsert({
+          run_id: runId,
+          coordinates: coordinates
+        }, { onConflict: "run_id" });
+
+      if (routeError) {
+        console.error("Route save error:", routeError);
+      } else {
+        console.log(`[finishRun] Route saved successfully for run ${runId}`);
+      }
+    }
+
+    // Update daily progress
     const today = new Date().toISOString().split('T')[0];
+    console.log(`[finishRun] Updating daily progress for user ${user.id}`);
+    
+    const { data: existingProgress } = await supabase
+      .from("daily_progress")
+      .select("id, seconds_completed, gems_earned")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .maybeSingle();
+
+    if (existingProgress) {
+      // Update existing progress
+      const { error: progressError } = await supabase
+        .from("daily_progress")
+        .update({
+          seconds_completed: existingProgress.seconds_completed + duration,
+          gems_earned: existingProgress.gems_earned + gemsEarned,
+          updated_at: new Date().toISOString()
+        })
+        .eq("user_id", user.id)
+        .eq("date", today);
+
+      if (progressError) {
+        console.error("Daily progress update error:", progressError);
+      } else {
+        console.log(`[finishRun] Daily progress updated for user ${user.id}`);
+      }
+    } else {
+      // Create new daily progress entry
+      const { error: progressError } = await supabase
+        .from("daily_progress")
+        .insert({
+          user_id: user.id,
+          date: today,
+          seconds_completed: duration,
+          gems_earned: gemsEarned,
+          minutes_goal: 15
+        });
+
+      if (progressError) {
+        console.error("Daily progress creation error:", progressError);
+      } else {
+        console.log(`[finishRun] Daily progress created for user ${user.id}`);
+      }
+    }
+
+    // Update or create streak
     console.log(`[finishRun] Checking streak for user ${user.id} on date ${today}`);
     
     const { data: existingStreak, error: streakQueryError } = await supabase
@@ -176,17 +232,14 @@ serve(async (req: Request) => {
       console.log(`[finishRun] Days since last run: ${daysDiff}`);
 
       if (daysDiff === 1) {
-        // Consecutive day
         streakData.current_streak = existingStreak.current_streak + 1;
         streakData.longest_streak = Math.max(existingStreak.longest_streak, streakData.current_streak);
         console.log(`[finishRun] Consecutive day - new streak: ${streakData.current_streak}`);
       } else if (daysDiff === 0) {
-        // Same day, keep existing streak
         streakData.current_streak = existingStreak.current_streak;
         streakData.longest_streak = existingStreak.longest_streak;
         console.log(`[finishRun] Same day - keeping streak: ${streakData.current_streak}`);
       } else {
-        // Streak broken, reset to 1
         streakData.current_streak = 1;
         streakData.longest_streak = existingStreak.longest_streak;
         console.log(`[finishRun] Streak broken - resetting to: ${streakData.current_streak}`);
@@ -203,7 +256,6 @@ serve(async (req: Request) => {
         console.log(`[finishRun] Streak updated successfully for user ${user.id}`);
       }
     } else {
-      // Create new streak
       console.log(`[finishRun] Creating new streak for user ${user.id}:`, streakData);
       const { error: streakCreateError } = await supabase
         .from("streaks")
@@ -216,76 +268,76 @@ serve(async (req: Request) => {
       }
     }
 
-    // Check for achievements
-    const achievements: Achievement[] = [];
+    // Update achievements
+    console.log(`[finishRun] Updating achievements for user ${user.id}`);
     
-    // Check for distance-based achievements
-    if (distance >= 3.1) { // 5km = 3.1 miles
-      achievements.push({
-        user_id: user.id,
-        description: "Complete a 5km run",
-        points: 50,
-        gems_balance: 5,
-        created_at: new Date().toISOString()
-      });
-    }
-    
-    if (distance >= 6.2) { // 10km = 6.2 miles
-      achievements.push({
-        user_id: user.id,
-        description: "Complete a 10km run",
-        points: 100,
-        gems_balance: 10,
-        created_at: new Date().toISOString()
-      });
-    }
+    // Get user's current achievements
+    const { data: userAchievements } = await supabase
+      .from("user_achievements")
+      .select("*")
+      .eq("user_id", user.id);
 
-    // Check for streak-based achievements
-    if (streakData.current_streak >= 7) {
-      achievements.push({
-        user_id: user.id,
-        description: "Maintain a 7-day streak",
-        points: 75,
-        gems_balance: 7,
-        created_at: new Date().toISOString()
-      });
-    }
-    
-    if (streakData.current_streak >= 30) {
-      achievements.push({
-        user_id: user.id,
-        description: "Maintain a 30-day streak",
-        points: 200,
-        gems_balance: 30,
-        created_at: new Date().toISOString()
-      });
-    }
+    const unlockedAchievements: string[] = [];
 
-    // Check for speed-based achievements (10.8 mph = 3 m/s)
-    if (averageSpeed && averageSpeed >= 10.8) {
-      achievements.push({
-        user_id: user.id,
-        description: "Maintain an average speed of 3 m/s",
-        points: 150,
-        gems_balance: 15,
-        created_at: new Date().toISOString()
-      });
-    }
+    // Update distance-based achievements
+    for (const achievement of userAchievements || []) {
+      let shouldUnlock = false;
+      let newProgress = achievement.progress;
 
-    // Insert achievements (avoid duplicates)
-    console.log(`[finishRun] Processing ${achievements.length} achievements for user ${user.id}`);
-    for (const achievement of achievements) {
-      const { error: achievementError } = await supabase
-        .from("achievements")
-        .upsert([achievement], { 
-          onConflict: "user_id,description",
-          ignoreDuplicates: true 
-        });
+      switch (achievement.achievement_id) {
+        case "first_run":
+          if (distance > 0 && !achievement.is_unlocked) {
+            shouldUnlock = true;
+            newProgress = 1.0;
+          }
+          break;
+        case "5k_runner":
+          if (distance >= 3.1 && !achievement.is_unlocked) {
+            shouldUnlock = true;
+            newProgress = 1.0;
+          }
+          break;
+        case "speed_demon":
+          if (averageSpeed && averageSpeed >= 10.8 && !achievement.is_unlocked) {
+            shouldUnlock = true;
+            newProgress = 1.0;
+          }
+          break;
+        case "consistency_king":
+          if (streakData.current_streak >= 7 && !achievement.is_unlocked) {
+            shouldUnlock = true;
+            newProgress = 1.0;
+          } else if (streakData.current_streak < 7) {
+            newProgress = Math.min(1.0, streakData.current_streak / 7.0);
+          }
+          break;
+        case "marathon_ready":
+          // This would need to track total lifetime distance
+          // For now, just update progress based on this run
+          const currentValue = achievement.current_value + distance;
+          newProgress = Math.min(1.0, currentValue / achievement.target_value);
+          break;
+      }
 
-      if (achievementError) {
-        console.error("Achievement insert error:", achievementError);
-      } else {
-        console.log(`[finishRun] Achievement "${achievement.description}" processed for user ${user.id}`);
+      if (shouldUnlock || newProgress !== achievement.progress) {
+        const { error: achievementError } = await supabase
+          .from("user_achievements")
+          .update({
+            is_unlocked: shouldUnlock ? true : achievement.is_unlocked,
+            progress: newProgress,
+            current_value: achievement.achievement_id === "marathon_ready" 
+              ? achievement.current_value + distance 
+              : achievement.current_value,
+            unlocked_at: shouldUnlock ? new Date().toISOString() : achievement.unlocked_at
+          })
+          .eq("id", achievement.id);
+
+        if (achievementError) {
+          console.error("Achievement update error:", achievementError);
+        } else if (shouldUnlock) {
+          unlockedAchievements.push(achievement.title);
+          console.log(`[finishRun] Achievement unlocked: ${achievement.title}`);
+        }
       }
     }
 
@@ -298,7 +350,8 @@ serve(async (req: Request) => {
         message: "Run completed successfully",
         runId,
         streak: streakData,
-        achievements: achievements.map(a => a.description)
+        unlockedAchievements,
+        gemsEarned
       }),
       { 
         status: 200, 
