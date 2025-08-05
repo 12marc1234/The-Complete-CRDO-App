@@ -24,30 +24,38 @@ struct FriendsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
+                // Enhanced background
                 LinearGradient(
-                    gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
-                    startPoint: .top,
-                    endPoint: .bottom
+                    gradient: Gradient(colors: [
+                        Color(red: 0.05, green: 0.05, blue: 0.1),
+                        Color(red: 0.1, green: 0.1, blue: 0.15),
+                        Color.black
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
                 )
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Custom tab selector with better visibility
+                    // Enhanced tab selector with modern design
                     HStack(spacing: 0) {
                         // Friends Tab
                         Button(action: { selectedTab = 0 }) {
                             Text("Friends")
-                                .font(.system(size: 14, weight: selectedTab == 0 ? .semibold : .medium))
-                                .foregroundColor(selectedTab == 0 ? .white : .white.opacity(0.6))
+                                .font(.system(size: 16, weight: selectedTab == 0 ? .semibold : .medium))
+                                .foregroundColor(selectedTab == 0 ? .white : .white.opacity(0.7))
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
+                                .padding(.vertical, 12)
                                 .background(
                                     selectedTab == 0 ? 
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.white.opacity(0.2)) :
-                                    RoundedRectangle(cornerRadius: 6)
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.white.opacity(0.15)) :
+                                    RoundedRectangle(cornerRadius: 12)
                                         .fill(Color.clear)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(selectedTab == 0 ? Color.white.opacity(0.3) : Color.clear, lineWidth: 1)
                                 )
                         }
                         .buttonStyle(PlainButtonStyle())
@@ -55,23 +63,27 @@ struct FriendsView: View {
                         // Leaderboards Tab
                         Button(action: { selectedTab = 1 }) {
                             Text("Leaderboards")
-                                .font(.system(size: 14, weight: selectedTab == 1 ? .semibold : .medium))
-                                .foregroundColor(selectedTab == 1 ? .white : .white.opacity(0.6))
+                                .font(.system(size: 16, weight: selectedTab == 1 ? .semibold : .medium))
+                                .foregroundColor(selectedTab == 1 ? .white : .white.opacity(0.7))
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
+                                .padding(.vertical, 12)
                                 .background(
                                     selectedTab == 1 ? 
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.white.opacity(0.2)) :
-                                    RoundedRectangle(cornerRadius: 6)
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.white.opacity(0.15)) :
+                                    RoundedRectangle(cornerRadius: 12)
                                         .fill(Color.clear)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(selectedTab == 1 ? Color.white.opacity(0.3) : Color.clear, lineWidth: 1)
                                 )
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 4)
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 20)
                     
                     if selectedTab == 0 {
                         FriendsTabView(

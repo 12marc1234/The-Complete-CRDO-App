@@ -20,17 +20,21 @@ struct HomeView: View {
     
     var body: some View {
         ZStack {
-            // Dark background
+            // Enhanced gradient background
             LinearGradient(
-                gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
-                startPoint: .top,
-                endPoint: .bottom
+                gradient: Gradient(colors: [
+                    Color(red: 0.05, green: 0.05, blue: 0.1),
+                    Color(red: 0.1, green: 0.1, blue: 0.15),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
             
             ScrollView {
-                VStack(spacing: 20) {
-                    // Streak section
+                VStack(spacing: 24) {
+                    // Enhanced streak section
                     StreakSection(
                         currentStreak: 5, // Mock value for now
                         longestStreak: 12, // Mock value for now
@@ -52,18 +56,21 @@ struct HomeView: View {
                         runManager: runManager,
                         gemsManager: gemsManager
                     )
+                    .padding(.horizontal, 20)
                     
-                    // Gems section
+                    // Enhanced gems section
                     GemsSection(gemsManager: gemsManager)
+                        .padding(.horizontal, 20)
                     
-                    // Quick stats
+                    // Enhanced quick stats
                     QuickStatsSection(runManager: runManager)
+                        .padding(.horizontal, 20)
                     
-                    // Active run view
+                    // Enhanced active run view
                     if runManager.isRunning {
-                        VStack(spacing: 20) {
-                            // Run stats
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 15) {
+                        VStack(spacing: 24) {
+                            // Enhanced run stats with better spacing
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 16) {
                                 StatCard(
                                     title: "Distance",
                                     value: UnitConverter.formatDistance(runManager.distance, unitSystem: preferencesManager.preferences.unitSystem),
@@ -85,60 +92,48 @@ struct HomeView: View {
                                     color: .orange
                                 )
                             }
+                            .padding(.horizontal, 20)
                             
-                            // Gems earned preview
+                            // Enhanced gems earned preview
                             HStack {
                                 Image(systemName: "diamond.fill")
                                     .foregroundColor(.yellow)
                                     .font(.title3)
+                                    .shadow(color: .yellow.opacity(0.5), radius: 4)
                                 
                                 Text("Gems Earned This Run:")
                                     .font(.subheadline)
+                                    .fontWeight(.medium)
                                     .foregroundColor(.white)
                                 
                                 Spacer()
                                 
-                                let gemsEarned = GemsManager.shared.calculateGemsForRun(
-                                    distance: runManager.distance,
-                                    averageSpeed: runManager.averageSpeed
-                                )
-                                Text("+\(gemsEarned)")
-                                    .font(.title3)
+                                Text("+\(Int(runManager.duration / 60))")
+                                    .font(.title2)
                                     .fontWeight(.bold)
                                     .foregroundColor(.yellow)
+                                    .shadow(color: .yellow.opacity(0.5), radius: 4)
                             }
-                            .padding()
-                            .background(Color.black.opacity(0.3))
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color(red: 0.15, green: 0.15, blue: 0.2))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
+                                    )
                             )
-                            
-                            // Stop button
-                            Button(action: {
-                                runManager.finishRun()
-                            }) {
-                                Text("Finish Run")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 50)
-                                    .background(Color.red)
-                                    .cornerRadius(25)
-                            }
-                            .padding(.horizontal)
+                            .padding(.horizontal, 20)
                         }
-                        .padding()
                     }
                     
-                    // Extra spacing for better scrolling
+
+                    
                     Spacer(minLength: 100)
                 }
                 .padding(.top, 20)
             }
-            .scrollIndicators(.hidden) // Hide scroll indicators for cleaner look
         }
         .sheet(isPresented: $showingRunMap) {
             RunMapView(runManager: runManager)

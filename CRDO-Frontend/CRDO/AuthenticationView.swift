@@ -200,14 +200,18 @@ struct AuthenticationView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
-                // Background gradient
-                LinearGradient(
-                    gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                    ZStack {
+            // Enhanced background gradient
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(red: 0.05, green: 0.05, blue: 0.1),
+                    Color(red: 0.1, green: 0.1, blue: 0.15),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 30) {

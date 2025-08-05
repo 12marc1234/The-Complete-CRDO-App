@@ -18,11 +18,15 @@ struct CityView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
+                // Enhanced background
                 LinearGradient(
-                    gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
-                    startPoint: .top,
-                    endPoint: .bottom
+                    gradient: Gradient(colors: [
+                        Color(red: 0.05, green: 0.05, blue: 0.1),
+                        Color(red: 0.1, green: 0.1, blue: 0.15),
+                        Color.black
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
                 )
                 .ignoresSafeArea()
                 

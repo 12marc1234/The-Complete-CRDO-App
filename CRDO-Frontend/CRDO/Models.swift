@@ -397,27 +397,35 @@ struct StatCard: View {
     let color: Color
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.caption)
+                .fontWeight(.medium)
                 .foregroundColor(.gray)
+                .textCase(.uppercase)
+                .tracking(0.5)
             
             Text(value)
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(color)
+                .shadow(color: color.opacity(0.3), radius: 2)
             
             Text(subtitle)
                 .font(.caption2)
-                .foregroundColor(.gray)
+                .foregroundColor(.gray.opacity(0.8))
         }
-        .padding()
-        .background(Color.black.opacity(0.3))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(red: 0.1, green: 0.1, blue: 0.15))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(color.opacity(0.2), lineWidth: 1)
+                )
         )
+        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
     }
 }
 
@@ -427,24 +435,31 @@ struct CompactStatCard: View {
     let color: Color
     
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             Text(value)
                 .font(.title3)
                 .fontWeight(.bold)
                 .foregroundColor(color)
+                .shadow(color: color.opacity(0.3), radius: 1)
             
             Text(title)
                 .font(.caption)
-                .foregroundColor(.gray)
+                .fontWeight(.medium)
+                .foregroundColor(.gray.opacity(0.8))
+                .textCase(.uppercase)
+                .tracking(0.3)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.black.opacity(0.3))
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(red: 0.1, green: 0.1, blue: 0.15))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(color.opacity(0.2), lineWidth: 1)
+                )
         )
+        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
     }
 }
 
@@ -457,10 +472,17 @@ struct GlassCard<Content: View>: View {
     
     var body: some View {
         content
-            .padding()
-            .background(.ultraThinMaterial)
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+            )
+            .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
     }
 }
 
@@ -904,7 +926,7 @@ class CityManager: ObservableObject {
 // MARK: - Achievement Models
 
 struct Achievement: Identifiable, Codable {
-    let id = UUID()
+    var id = UUID()
     let title: String
     let description: String
     let icon: String

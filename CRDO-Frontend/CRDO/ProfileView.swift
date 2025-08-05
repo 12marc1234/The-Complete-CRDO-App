@@ -23,16 +23,20 @@ struct ProfileView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
+                // Enhanced background
                 LinearGradient(
-                    gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
-                    startPoint: .top,
-                    endPoint: .bottom
+                    gradient: Gradient(colors: [
+                        Color(red: 0.05, green: 0.05, blue: 0.1),
+                        Color(red: 0.1, green: 0.1, blue: 0.15),
+                        Color.black
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
                 )
                 .ignoresSafeArea()
                 
                 ScrollView {
-                    VStack(spacing: 30) {
+                    VStack(spacing: 32) {
                         // Profile header with fade-in animation
                         ProfileHeaderSection(
                             authTracker: authTracker,
@@ -42,14 +46,17 @@ struct ProfileView: View {
                         )
                         .opacity(max(0.3, 1.0 - scrollOffset / 200))
                         .scaleEffect(max(0.8, 1.0 - scrollOffset / 400))
+                        .padding(.horizontal, 20)
                         
                         // Stats summary with fade-in
                         StatsSection(scrollOffset: scrollOffset)
                             .opacity(max(0.3, 1.0 - scrollOffset / 300))
+                            .padding(.horizontal, 20)
                         
                         // Gems section with fade-in
                         ProfileGemsSection(gemsManager: gemsManager, scrollOffset: scrollOffset)
                             .opacity(max(0.3, 1.0 - scrollOffset / 250))
+                            .padding(.horizontal, 20)
                         
                         // Achievements section with fade-in
                         AchievementsSection(
@@ -59,6 +66,7 @@ struct ProfileView: View {
                             isLoading: false
                         )
                         .opacity(max(0.3, 1.0 - scrollOffset / 200))
+                        .padding(.horizontal, 20)
                         
                         // Settings with fade-in
                         SettingsSection(
@@ -66,13 +74,16 @@ struct ProfileView: View {
                             scrollOffset: scrollOffset
                         )
                         .opacity(max(0.3, 1.0 - scrollOffset / 150))
+                        .padding(.horizontal, 20)
                         
                         // Actions with fade-in
                         ActionsSection(authTracker: authTracker, scrollOffset: scrollOffset)
                             .opacity(max(0.3, 1.0 - scrollOffset / 100))
+                            .padding(.horizontal, 20)
                         
-                        Spacer()
+                        Spacer(minLength: 100)
                     }
+                    .padding(.top, 20)
                 }
                 .background(
                     GeometryReader { geometry in
