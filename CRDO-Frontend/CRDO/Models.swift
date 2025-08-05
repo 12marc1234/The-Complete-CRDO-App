@@ -528,6 +528,19 @@ struct UnitConverter {
     }
 } 
 
+// MARK: - Custom Shapes
+
+struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
 // MARK: - Building Types
 
 enum BuildingType: String, CaseIterable, Codable {
@@ -584,12 +597,12 @@ enum BuildingType: String, CaseIterable, Codable {
     
     var realisticIcon: String {
         switch self {
-        case .house: return "BuildingHouse"
-        case .park: return "BuildingPark"
-        case .office: return "BuildingOffice"
-        case .mall: return "BuildingMall"
-        case .skyscraper: return "BuildingSkyscraper"
-        case .monument: return "BuildingMonument"
+        case .house: return "house1"
+        case .park: return "park1"
+        case .office: return "office1"
+        case .mall: return "mall1"
+        case .skyscraper: return "skyscraper1"
+        case .monument: return "monument1"
         }
     }
     
@@ -601,6 +614,126 @@ enum BuildingType: String, CaseIterable, Codable {
         case .mall: return CGSize(width: 55, height: 55)
         case .skyscraper: return CGSize(width: 60, height: 60)
         case .monument: return CGSize(width: 70, height: 70)
+        }
+    }
+    
+    var buildingGraphic: some View {
+        switch self {
+        case .house:
+            AnyView(
+                VStack(spacing: 2) {
+                    // Roof
+                    Triangle()
+                        .fill(Color.brown)
+                        .frame(width: 30, height: 15)
+                    // House body
+                    Rectangle()
+                        .fill(Color.orange)
+                        .frame(width: 25, height: 20)
+                        .overlay(
+                            // Windows
+                            HStack(spacing: 8) {
+                                Circle().fill(Color.blue).frame(width: 6, height: 6)
+                                Circle().fill(Color.blue).frame(width: 6, height: 6)
+                            }
+                        )
+                }
+            )
+        case .park:
+            AnyView(
+                VStack(spacing: 2) {
+                    // Trees
+                    HStack(spacing: 4) {
+                        Circle().fill(Color.green).frame(width: 12, height: 12)
+                        Circle().fill(Color.green).frame(width: 12, height: 12)
+                        Circle().fill(Color.green).frame(width: 12, height: 12)
+                    }
+                    // Ground
+                    Rectangle()
+                        .fill(Color.green.opacity(0.3))
+                        .frame(width: 30, height: 8)
+                }
+            )
+        case .office:
+            AnyView(
+                VStack(spacing: 2) {
+                    // Office building
+                    Rectangle()
+                        .fill(Color.blue)
+                        .frame(width: 25, height: 25)
+                        .overlay(
+                            // Windows grid
+                            VStack(spacing: 2) {
+                                HStack(spacing: 2) {
+                                    Rectangle().fill(Color.white).frame(width: 4, height: 4)
+                                    Rectangle().fill(Color.white).frame(width: 4, height: 4)
+                                    Rectangle().fill(Color.white).frame(width: 4, height: 4)
+                                }
+                                HStack(spacing: 2) {
+                                    Rectangle().fill(Color.white).frame(width: 4, height: 4)
+                                    Rectangle().fill(Color.white).frame(width: 4, height: 4)
+                                    Rectangle().fill(Color.white).frame(width: 4, height: 4)
+                                }
+                                HStack(spacing: 2) {
+                                    Rectangle().fill(Color.white).frame(width: 4, height: 4)
+                                    Rectangle().fill(Color.white).frame(width: 4, height: 4)
+                                    Rectangle().fill(Color.white).frame(width: 4, height: 4)
+                                }
+                            }
+                        )
+                }
+            )
+        case .mall:
+            AnyView(
+                VStack(spacing: 2) {
+                    // Mall building
+                    Rectangle()
+                        .fill(Color.purple)
+                        .frame(width: 30, height: 20)
+                        .overlay(
+                            // Storefronts
+                            HStack(spacing: 4) {
+                                Rectangle().fill(Color.yellow).frame(width: 6, height: 8)
+                                Rectangle().fill(Color.yellow).frame(width: 6, height: 8)
+                                Rectangle().fill(Color.yellow).frame(width: 6, height: 8)
+                                Rectangle().fill(Color.yellow).frame(width: 6, height: 8)
+                            }
+                        )
+                }
+            )
+        case .skyscraper:
+            AnyView(
+                VStack(spacing: 2) {
+                    // Tall building
+                    Rectangle()
+                        .fill(Color.gray)
+                        .frame(width: 20, height: 35)
+                        .overlay(
+                            // Windows
+                            VStack(spacing: 1) {
+                                ForEach(0..<7, id: \.self) { _ in
+                                    HStack(spacing: 1) {
+                                        Rectangle().fill(Color.white).frame(width: 3, height: 2)
+                                        Rectangle().fill(Color.white).frame(width: 3, height: 2)
+                                    }
+                                }
+                            }
+                        )
+                }
+            )
+        case .monument:
+            AnyView(
+                VStack(spacing: 2) {
+                    // Monument base
+                    Rectangle()
+                        .fill(Color.gold)
+                        .frame(width: 15, height: 8)
+                    // Monument top
+                    Triangle()
+                        .fill(Color.gold)
+                        .frame(width: 20, height: 25)
+                }
+            )
         }
     }
 }
