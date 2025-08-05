@@ -80,6 +80,9 @@ class AuthenticationTracker: ObservableObject {
                         if let userData = try? JSONEncoder().encode(user) {
                             UserDefaults.standard.set(userData, forKey: "userData")
                         }
+                        
+                        // Reload local data for the new user
+                        self.reloadLocalData()
                     }
                 }
             )
@@ -118,6 +121,9 @@ class AuthenticationTracker: ObservableObject {
                                 UserDefaults.standard.set(userData, forKey: "userData")
                             }
                         }
+                        
+                        // Reload local data for the new user
+                        self.reloadLocalData()
                     }
                 }
             )
@@ -128,11 +134,49 @@ class AuthenticationTracker: ObservableObject {
         isAuthenticated = false
         currentUser = nil
         
+        // Clear local data for the current user
+        clearLocalData()
+        
         // Clear authentication data
-        UserDefaults.standard.removeObject(forKey: "userId")
-        UserDefaults.standard.removeObject(forKey: "authToken")
-        UserDefaults.standard.removeObject(forKey: "userData")
         UserDefaults.standard.set(false, forKey: "isAuthenticated")
+        UserDefaults.standard.removeObject(forKey: "userData")
+    }
+    
+        private func clearLocalData() {
+        // Clear RunManager data
+        let runManager = RunManager()
+        runManager.recentRuns.removeAll()
+        runManager.saveRecentRuns()
+        
+        // Reset GemsManager data
+        let gemsManager = GemsManager.shared
+        gemsManager.totalGems = 0
+        gemsManager.gemsEarnedToday = 0
+        gemsManager.dailySecondsCompleted = 0
+        gemsManager.saveGemsData()
+        
+        // Clear DataManager cached data
+        DataManager.shared.userStats = nil
+        DataManager.shared.streak = nil
+        DataManager.shared.gems = nil
+        DataManager.shared.friends = []
+        
+        print("🧹 Cleared local data for user switch")
+    }
+    
+    private func reloadLocalData() {
+        // Reload RunManager data for the new user
+        let runManager = RunManager()
+        runManager.loadRecentRuns()
+        
+        // Reload GemsManager data for the new user
+        let gemsManager = GemsManager.shared
+        gemsManager.loadGemsData()
+        
+        // Don't automatically sync backend data - let user do it manually
+        // This prevents mixing data from different users
+        
+        print("🔄 Reloaded local data for new user")
     }
 }
 

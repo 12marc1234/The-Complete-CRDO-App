@@ -73,19 +73,22 @@ class GemsManager: ObservableObject {
         checkDailyReset()
     }
     
-    private func loadGemsData() {
-        totalGems = UserDefaults.standard.integer(forKey: "totalGems")
-        gemsEarnedToday = UserDefaults.standard.integer(forKey: "gemsEarnedToday")
-        lastRunDate = UserDefaults.standard.object(forKey: "lastRunDate") as? Date
-        dailySecondsCompleted = UserDefaults.standard.integer(forKey: "dailySecondsCompleted")
-        dailyMinutesGoal = UserDefaults.standard.integer(forKey: "dailyMinutesGoal")
+    func loadGemsData() {
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        let prefix = "gems_\(userId)_"
+        
+        totalGems = UserDefaults.standard.integer(forKey: prefix + "totalGems")
+        gemsEarnedToday = UserDefaults.standard.integer(forKey: prefix + "gemsEarnedToday")
+        lastRunDate = UserDefaults.standard.object(forKey: prefix + "lastRunDate") as? Date
+        dailySecondsCompleted = UserDefaults.standard.integer(forKey: prefix + "dailySecondsCompleted")
+        dailyMinutesGoal = UserDefaults.standard.integer(forKey: prefix + "dailyMinutesGoal")
         
         // Set default goal if not set
         if dailyMinutesGoal == 0 {
             dailyMinutesGoal = 15
         }
         
-        print("🔮 GemsManager - Loaded Data:")
+        print("🔮 GemsManager - Loaded Data for user \(userId):")
         print("   Total Gems: \(totalGems)")
         print("   Gems Earned Today: \(gemsEarnedToday)")
         print("   Last Run Date: \(lastRunDate?.description ?? "None")")
@@ -93,14 +96,17 @@ class GemsManager: ObservableObject {
         print("   Daily Minutes Goal: \(dailyMinutesGoal)")
     }
     
-    private func saveGemsData() {
-        UserDefaults.standard.set(totalGems, forKey: "totalGems")
-        UserDefaults.standard.set(gemsEarnedToday, forKey: "gemsEarnedToday")
-        UserDefaults.standard.set(lastRunDate, forKey: "lastRunDate")
-        UserDefaults.standard.set(dailySecondsCompleted, forKey: "dailySecondsCompleted")
-        UserDefaults.standard.set(dailyMinutesGoal, forKey: "dailyMinutesGoal")
+    func saveGemsData() {
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        let prefix = "gems_\(userId)_"
         
-        print("💾 GemsManager - Saved Data:")
+        UserDefaults.standard.set(totalGems, forKey: prefix + "totalGems")
+        UserDefaults.standard.set(gemsEarnedToday, forKey: prefix + "gemsEarnedToday")
+        UserDefaults.standard.set(lastRunDate, forKey: prefix + "lastRunDate")
+        UserDefaults.standard.set(dailySecondsCompleted, forKey: prefix + "dailySecondsCompleted")
+        UserDefaults.standard.set(dailyMinutesGoal, forKey: prefix + "dailyMinutesGoal")
+        
+        print("💾 GemsManager - Saved Data for user \(userId):")
         print("   Total Gems: \(totalGems)")
         print("   Gems Earned Today: \(gemsEarnedToday)")
         print("   Last Run Date: \(lastRunDate?.description ?? "None")")

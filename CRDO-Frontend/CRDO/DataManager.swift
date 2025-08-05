@@ -280,6 +280,9 @@ class DataManager: ObservableObject {
     // MARK: - Auto Sync
     
     private func setupAutoSync() {
+        // Disable automatic syncing to prevent data mixing between users
+        // Users will need to manually sync their data when needed
+        /*
         // Sync every 5 minutes if connected
         Timer.publish(every: 300, on: .main, in: .common)
             .autoconnect()
@@ -289,6 +292,7 @@ class DataManager: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+        */
     }
     
     // MARK: - Utility Methods

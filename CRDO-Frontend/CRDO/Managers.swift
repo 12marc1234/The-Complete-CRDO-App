@@ -197,16 +197,22 @@ class RunManager: NSObject, ObservableObject {
         return distance >= 5 && timeInterval >= 2
     }
     
-    private func loadRecentRuns() {
-        if let data = UserDefaults.standard.data(forKey: "recentRuns"),
+    func loadRecentRuns() {
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        let key = "recentRuns_\(userId)"
+        
+        if let data = UserDefaults.standard.data(forKey: key),
            let runs = try? JSONDecoder().decode([RunSession].self, from: data) {
             recentRuns = runs
         }
     }
     
-    private func saveRecentRuns() {
+    func saveRecentRuns() {
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        let key = "recentRuns_\(userId)"
+        
         if let data = try? JSONEncoder().encode(recentRuns) {
-            UserDefaults.standard.set(data, forKey: "recentRuns")
+            UserDefaults.standard.set(data, forKey: key)
         }
     }
 }
