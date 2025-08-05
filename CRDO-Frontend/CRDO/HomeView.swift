@@ -17,6 +17,7 @@ struct HomeView: View {
     @ObservedObject var gemsManager = GemsManager.shared
     @State private var showingRunMap = false
     @State private var showingUserSettings = false
+    @State private var showingRunSheet = false
     
     var body: some View {
         ZStack {
@@ -41,7 +42,7 @@ struct HomeView: View {
                                 runManager.stopRun()
                             } else {
                                 runManager.startRun()
-                                showingRunMap = true
+                                showingRunSheet = true
                             }
                         },
                         onEndRun: {
@@ -62,6 +63,20 @@ struct HomeView: View {
                     // Active run view
                     if runManager.isRunning {
                         VStack(spacing: 20) {
+                            // Swipe up indicator
+                            VStack(spacing: 8) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.blue)
+                                
+                                Text("Swipe up to return to run view")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            .padding(.vertical, 10)
+                            .background(Color.black.opacity(0.3))
+                            .cornerRadius(12)
+                            
                             // Run stats
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 15) {
                                 StatCard(
@@ -115,6 +130,25 @@ struct HomeView: View {
                                     .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                             )
                             
+                            // Pull up run sheet button
+                            Button(action: {
+                                showingRunSheet = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "arrow.up.circle.fill")
+                                        .font(.title2)
+                                    Text("Return to Run View")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Color.blue)
+                                .cornerRadius(25)
+                            }
+                            .padding(.horizontal)
+                            
                             // Stop button
                             Button(action: {
                                 runManager.finishRun()
@@ -131,6 +165,15 @@ struct HomeView: View {
                             .padding(.horizontal)
                         }
                         .padding()
+                        .gesture(
+                            DragGesture()
+                                .onEnded { value in
+                                    if value.translation.height < -50 {
+                                        // Swipe up detected - show run view
+                                        showingRunSheet = true
+                                    }
+                                }
+                        )
                     }
                     
                     // Extra spacing for better scrolling
@@ -140,8 +183,8 @@ struct HomeView: View {
             }
             .scrollIndicators(.hidden) // Hide scroll indicators for cleaner look
         }
-        .sheet(isPresented: $showingRunMap) {
-            RunMapView(runManager: runManager)
+        .fullScreenCover(isPresented: $showingRunSheet) {
+            FullScreenRunView(runManager: runManager, isPresented: $showingRunSheet)
         }
     }
 }
@@ -378,20 +421,22 @@ struct QuickStatsSection: View {
     }
 }
 
-// MARK: - Run Map View
+// MARK: - Full Screen Run View
 
-struct RunMapView: View {
+struct FullScreenRunView: View {
     @ObservedObject var runManager: RunManager
-    @Environment(\.dismiss) private var dismiss
+    @Binding var isPresented: Bool
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     )
     @State private var showAverageSpeed = true
+    @State private var dragOffset: CGFloat = 0
+    @State private var isDragging = false
     
     var body: some View {
         ZStack {
-            // Dark background
+            // Background
             LinearGradient(
                 gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
                 startPoint: .top,
@@ -400,10 +445,46 @@ struct RunMapView: View {
             .ignoresSafeArea()
             
             VStack(spacing: 0) {
+                // Pull-down handle at the top
+                VStack(spacing: 8) {
+                    // Drag handle
+                    RoundedRectangle(cornerRadius: 2.5)
+                        .fill(Color.gray)
+                        .frame(width: 40, height: 5)
+                    
+                    Text("Pull down to minimize run")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                .padding(.top, 8)
+                .padding(.bottom, 16)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            isDragging = true
+                            dragOffset = max(0, value.translation.height)
+                        }
+                        .onEnded { value in
+                            isDragging = false
+                            if value.translation.height > 50 {
+                                // Just dismiss the view, don't stop the run
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    isPresented = false
+                                }
+                            } else {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    dragOffset = 0
+                                }
+                            }
+                        }
+                )
+                
                 // Header
                 HStack {
-                    Button("Close") {
-                        dismiss()
+                    Button("Minimize") {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isPresented = false
+                        }
                     }
                     .foregroundColor(.white)
                     
@@ -415,86 +496,100 @@ struct RunMapView: View {
                     
                     Spacer()
                     
-                    Button("Stop") {
-                        runManager.stopRun()
-                        dismiss()
+                    Button("Stop Run") {
+                        runManager.finishRun()
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isPresented = false
+                        }
                     }
                     .foregroundColor(.red)
                 }
-                .padding()
-                .background(Color.black.opacity(0.8))
+                .padding(.horizontal)
+                .padding(.bottom, 16)
                 
-                // Map
+                // Map - takes up most of the screen
                 Map(coordinateRegion: $region, showsUserLocation: true, userTrackingMode: .constant(.follow))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea(.all, edges: .bottom)
                 
-                // Stats overlay
-                VStack(spacing: 16) {
-                    // Average Speed Display
-                    if showAverageSpeed {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text("Current Speed")
+                // Stats overlay at the bottom
+                VStack {
+                    Spacer()
+                    
+                    VStack(spacing: 16) {
+                        // Average Speed Display
+                        if showAverageSpeed {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("Current Speed")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Text(String(format: "%.1f mph", runManager.currentSpeed))
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.gold)
+                                }
+                                
+                                Spacer()
+                                
+                                VStack(alignment: .trailing) {
+                                    Text("Average Speed")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Text(String(format: "%.1f mph", runManager.averageSpeed))
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .padding()
+                            .background(Color.black.opacity(0.8))
+                            .cornerRadius(12)
+                        }
+                        
+                        // Run stats
+                        HStack(spacing: 20) {
+                            VStack {
+                                Text("Distance")
                                     .font(.caption)
                                     .foregroundColor(.gray)
-                                Text(String(format: "%.1f mph", runManager.currentSpeed))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.gold)
+                                Text(UnitConverter.formatDistance(runManager.currentRun?.distance ?? 0, unitSystem: .imperial))
+                                    .font(.headline)
+                                    .foregroundColor(.white)
                             }
                             
-                            Spacer()
-                            
-                            VStack(alignment: .trailing) {
-                                Text("Average Speed")
+                            VStack {
+                                Text("Time")
                                     .font(.caption)
                                     .foregroundColor(.gray)
-                                Text(String(format: "%.1f mph", runManager.averageSpeed))
+                                Text(formatRunTime(Int(runManager.currentRun?.duration ?? 0)))
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                            }
+                            
+                            VStack {
+                                Text("Pace")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                Text(UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: .imperial))
                                     .font(.title2)
                                     .fontWeight(.bold)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.orange)
                             }
                         }
                         .padding()
                         .background(Color.black.opacity(0.8))
                         .cornerRadius(12)
                     }
-                    
-                    // Run stats
-                    HStack(spacing: 20) {
-                        VStack {
-                            Text("Distance")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Text(UnitConverter.formatDistance(runManager.currentRun?.distance ?? 0, unitSystem: .imperial))
-                                .font(.headline)
-                                .foregroundColor(.white)
-                        }
-                        
-                        VStack {
-                            Text("Time")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Text(formatRunTime(Int(runManager.currentRun?.duration ?? 0)))
-                                .font(.headline)
-                                .foregroundColor(.white)
-                        }
-                        
-                        VStack {
-                            Text("Pace")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Text(UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: .imperial))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.orange)
-                        }
-                    }
                     .padding()
-                    .background(Color.black.opacity(0.8))
-                    .cornerRadius(12)
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.black.opacity(0.7), Color.black.opacity(0.9)]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
                 }
-                .padding()
             }
         }
     }
@@ -503,6 +598,24 @@ struct RunMapView: View {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
+    }
+}
+
+// MARK: - Corner Radius Extension
+
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCorner(radius: radius, corners: corners))
+    }
+}
+
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
     }
 }
 
