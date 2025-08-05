@@ -153,12 +153,5 @@ CREATE INDEX IF NOT EXISTS idx_daily_progress_user_id ON daily_progress(user_id)
 CREATE INDEX IF NOT EXISTS idx_daily_progress_date ON daily_progress(date);
 CREATE INDEX IF NOT EXISTS idx_run_routes_run_id ON run_routes(run_id);
 
--- Insert default achievements for new users
-INSERT INTO user_achievements (user_id, achievement_id, title, description, category, icon, target_value) VALUES
-  ('00000000-0000-0000-0000-000000000000', 'first_run', 'First Steps', 'Complete your first run', 'distance', 'figure.run', 1),
-  ('00000000-0000-0000-0000-000000000000', '5k_runner', '5K Runner', 'Run 5 kilometers in a single session', 'distance', 'flag.checkered', 5000),
-  ('00000000-0000-0000-0000-000000000000', 'speed_demon', 'Speed Demon', 'Achieve a pace faster than 7:00 min/mi', 'speed', 'bolt.fill', 420),
-  ('00000000-0000-0000-0000-000000000000', 'consistency_king', 'Consistency King', 'Run 7 days in a row', 'consistency', 'calendar', 7),
-  ('00000000-0000-0000-0000-000000000000', 'social_butterfly', 'Social Butterfly', 'Add 5 friends', 'social', 'person.2.fill', 5),
-  ('00000000-0000-0000-0000-000000000000', 'marathon_ready', 'Marathon Ready', 'Run 26.2 miles total', 'special', 'trophy.fill', 42195)
-ON CONFLICT DO NOTHING; 
+-- Note: Achievements will be created dynamically by the getUserAchievements function
+-- when a user first accesses their achievements 

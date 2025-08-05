@@ -14,6 +14,9 @@ import Combine
 // MARK: - Run Manager
 
 class RunManager: NSObject, ObservableObject {
+    // Static reference to the current instance
+    static var currentInstance: RunManager?
+    
     @Published var isRunning = false
     @Published var currentRun: RunSession?
     @Published var recentRuns: [RunSession] = []
@@ -47,6 +50,9 @@ class RunManager: NSObject, ObservableObject {
         setupLocationManager()
         loadRecentRuns()
         calculateStats()
+        
+        // Set this as the current instance
+        RunManager.currentInstance = self
     }
     
     private func setupLocationManager() {
@@ -74,8 +80,8 @@ class RunManager: NSObject, ObservableObject {
         
         locationManager.startUpdatingLocation()
         
-        // Update stats more frequently (every 0.5 seconds instead of 1.0)
-        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+        // Update stats every 1 second to reduce CPU usage
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             self.updateRunStats()
         }
     }
@@ -97,6 +103,9 @@ class RunManager: NSObject, ObservableObject {
             // Update daily progress (persists even when logging out)
             GemsManager.shared.addDailyProgress(seconds: Int(updatedRun.duration))
             
+            // Refresh achievements based on new run data
+            AchievementManager.shared.refreshAchievements()
+            
             // Recalculate stats
             calculateStats()
         }
@@ -117,7 +126,14 @@ class RunManager: NSObject, ObservableObject {
         // Calculate final stats
         let finalDistance = distance
         let finalDuration = Date().timeIntervalSince(run.startTime)
-        let finalAveragePace = finalDuration / (finalDistance / 1609.34) // seconds per mile
+        
+        // Calculate final average speed (distance/time)
+        let finalDistanceInMiles = finalDistance / 1609.34 // Convert meters to miles
+        let finalTimeInHours = finalDuration / 3600 // Convert seconds to hours
+        let finalAverageSpeed = finalDistanceInMiles / finalTimeInHours // mph
+        
+        // Calculate final average pace (time/distance)
+        let finalAveragePace = finalTimeInHours * 60 / finalDistanceInMiles // minutes per mile
         
         // Update the run with final stats
         var updatedRun = run
@@ -130,15 +146,19 @@ class RunManager: NSObject, ObservableObject {
         
         // Award gems for this run
         print("🏃‍♂️ Finishing Run:")
-        print("   Final Distance: \(finalDistance) meters")
-        print("   Final Average Speed: \(averageSpeed) mph")
+        print("   Final Distance: \(finalDistance) meters (\(finalDistanceInMiles) miles)")
+        print("   Final Average Speed: \(finalAverageSpeed) mph")
+        print("   Final Average Pace: \(finalAveragePace) min/mi")
         print("   Final Duration: \(finalDuration) seconds")
         
         GemsManager.shared.awardGemsForRun(
             distance: finalDistance,
-            averageSpeed: averageSpeed,
+            averageSpeed: finalAverageSpeed,
             duration: finalDuration
         )
+        
+        // Check for potential achievements and send notifications
+        checkForAchievements(distance: finalDistance, averageSpeed: finalAverageSpeed, duration: finalDuration)
         
         // Add to recent runs
         recentRuns.insert(updatedRun, at: 0)
@@ -170,8 +190,14 @@ class RunManager: NSObject, ObservableObject {
             var updatedRun = run
             updatedRun.duration = duration
             updatedRun.distance = distance
-            updatedRun.averagePace = pace
-            updatedRun.maxPace = topSpeed > 0 ? 1000 / topSpeed : 0
+            
+            // Calculate current average pace based on current average speed
+            if averageSpeed > 0.5 {
+                updatedRun.averagePace = 60 / averageSpeed // minutes per mile
+            } else {
+                updatedRun.averagePace = pace // Use current pace as fallback
+            }
+            
             updatedRun.route = route
             currentRun = updatedRun
         }
@@ -221,6 +247,221 @@ class RunManager: NSObject, ObservableObject {
             UserDefaults.standard.set(data, forKey: key)
         }
     }
+    
+    // MARK: - Achievement Checking
+    
+    private func checkForAchievements(distance: Double, averageSpeed: Double, duration: TimeInterval) {
+        let notificationManager = NotificationManager.shared
+        
+        // Check distance-based achievements
+        let distanceInMiles = distance / 1609.34
+        
+        if distanceInMiles >= 3.1 && !UserDefaults.standard.bool(forKey: "achievement_5k_runner") {
+            UserDefaults.standard.set(true, forKey: "achievement_5k_runner")
+            let achievement = Achievement(
+                title: "5K Runner", 
+                description: "Run 5 kilometers in a single session", 
+                icon: "flag.checkered", 
+                category: .distance,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 5000,
+                current: Int(distance)
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        if distanceInMiles >= 6.2 && !UserDefaults.standard.bool(forKey: "achievement_10k_runner") {
+            UserDefaults.standard.set(true, forKey: "achievement_10k_runner")
+            let achievement = Achievement(
+                title: "10K Runner", 
+                description: "Run 10 kilometers in a single session", 
+                icon: "flag.checkered.2", 
+                category: .distance,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 10000,
+                current: Int(distance)
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        if distanceInMiles >= 13.1 && !UserDefaults.standard.bool(forKey: "achievement_half_marathon") {
+            UserDefaults.standard.set(true, forKey: "achievement_half_marathon")
+            let achievement = Achievement(
+                title: "Half Marathon", 
+                description: "Run 13.1 miles in a single session", 
+                icon: "flag.checkered.3", 
+                category: .distance,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 21097,
+                current: Int(distance)
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        // Check speed-based achievements
+        let paceInMinutes = 60 / averageSpeed // minutes per mile
+        
+        if paceInMinutes <= 7.0 && !UserDefaults.standard.bool(forKey: "achievement_speed_demon") {
+            UserDefaults.standard.set(true, forKey: "achievement_speed_demon")
+            let achievement = Achievement(
+                title: "Speed Demon", 
+                description: "Achieve a pace faster than 7:00 min/mi", 
+                icon: "bolt.fill", 
+                category: .speed,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 420,
+                current: Int(paceInMinutes * 60)
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        if paceInMinutes <= 6.0 && !UserDefaults.standard.bool(forKey: "achievement_sprint_king") {
+            UserDefaults.standard.set(true, forKey: "achievement_sprint_king")
+            let achievement = Achievement(
+                title: "Sprint King", 
+                description: "Achieve a pace faster than 6:00 min/mi", 
+                icon: "bolt.circle.fill", 
+                category: .speed,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 360,
+                current: Int(paceInMinutes * 60)
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        if paceInMinutes <= 5.0 && !UserDefaults.standard.bool(forKey: "achievement_elite_runner") {
+            UserDefaults.standard.set(true, forKey: "achievement_elite_runner")
+            let achievement = Achievement(
+                title: "Elite Runner", 
+                description: "Achieve a pace faster than 5:00 min/mi", 
+                icon: "bolt.shield.fill", 
+                category: .speed,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 300,
+                current: Int(paceInMinutes * 60)
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        // Check duration-based achievements
+        let durationInHours = duration / 3600
+        
+        if durationInHours >= 2.0 && !UserDefaults.standard.bool(forKey: "achievement_endurance_runner") {
+            UserDefaults.standard.set(true, forKey: "achievement_endurance_runner")
+            let achievement = Achievement(
+                title: "Endurance Runner", 
+                description: "Run for 2 hours straight", 
+                icon: "timer.circle", 
+                category: .challenge,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 7200,
+                current: Int(duration)
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        // Check frequency-based achievements
+        let totalRuns = recentRuns.count + 1 // +1 for current run
+        
+        if totalRuns >= 10 && !UserDefaults.standard.bool(forKey: "achievement_frequent_runner") {
+            UserDefaults.standard.set(true, forKey: "achievement_frequent_runner")
+            let achievement = Achievement(
+                title: "Frequent Runner", 
+                description: "Complete 10 runs", 
+                icon: "number.circle", 
+                category: .frequency,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 10,
+                current: totalRuns
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        if totalRuns >= 50 && !UserDefaults.standard.bool(forKey: "achievement_dedicated_runner") {
+            UserDefaults.standard.set(true, forKey: "achievement_dedicated_runner")
+            let achievement = Achievement(
+                title: "Dedicated Runner", 
+                description: "Complete 50 runs", 
+                icon: "number.circle.fill", 
+                category: .frequency,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 50,
+                current: totalRuns
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        if totalRuns >= 100 && !UserDefaults.standard.bool(forKey: "achievement_veteran_runner") {
+            UserDefaults.standard.set(true, forKey: "achievement_veteran_runner")
+            let achievement = Achievement(
+                title: "Veteran Runner", 
+                description: "Complete 100 runs", 
+                icon: "number.square", 
+                category: .frequency,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 100,
+                current: totalRuns
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        // Check milestone achievements
+        let totalDistanceInMiles = (recentRuns.reduce(0) { $0 + $1.distance } + distance) / 1609.34
+        
+        if totalDistanceInMiles >= 10 && !UserDefaults.standard.bool(forKey: "achievement_ten_miler") {
+            UserDefaults.standard.set(true, forKey: "achievement_ten_miler")
+            let achievement = Achievement(
+                title: "Ten Miler", 
+                description: "Run 10 miles total", 
+                icon: "10.circle", 
+                category: .milestone,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 16093,
+                current: Int(totalDistanceInMiles * 1609.34)
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        if totalDistanceInMiles >= 100 && !UserDefaults.standard.bool(forKey: "achievement_hundred_miler") {
+            UserDefaults.standard.set(true, forKey: "achievement_hundred_miler")
+            let achievement = Achievement(
+                title: "Hundred Miler", 
+                description: "Run 100 miles total", 
+                icon: "100.circle", 
+                category: .milestone,
+                isUnlocked: true,
+                unlockedDate: Date(),
+                progress: 1.0,
+                target: 160934,
+                current: Int(totalDistanceInMiles * 1609.34)
+            )
+            notificationManager.scheduleAchievementNotification(achievement: achievement)
+        }
+        
+        print("🏆 Achievement check completed for run: \(distanceInMiles) miles, \(averageSpeed) mph, \(durationInHours) hours")
+    }
 }
 
 // MARK: - Run Manager Location Delegate
@@ -241,8 +482,12 @@ extension RunManager: CLLocationManagerDelegate {
                 speedReadings.removeFirst()
             }
             
-            // Update average speed
-            averageSpeed = speedReadings.reduce(0, +) / Double(speedReadings.count)
+            // Calculate true average speed based on total distance and time
+            if duration > 0 {
+                let distanceInMiles = distance / 1609.34 // Convert meters to miles
+                let timeInHours = duration / 3600 // Convert seconds to hours
+                averageSpeed = distanceInMiles / timeInHours // mph
+            }
             
             // Update top speed
             if speed > topSpeed {
@@ -270,9 +515,20 @@ extension RunManager: CLLocationManagerDelegate {
             }
         }
         
-        // Calculate pace (minutes per mile) - only if we have meaningful speed
+        // Calculate pace (minutes per mile) based on current speed
         if currentSpeed > 0.5 { // Only calculate pace if speed is reasonable
             pace = 60 / currentSpeed // minutes per mile
+        }
+        
+        // Calculate average pace based on average speed
+        if averageSpeed > 0.5 {
+            let averagePace = 60 / averageSpeed // minutes per mile
+            // Update the current run's average pace
+            if let run = currentRun {
+                var updatedRun = run
+                updatedRun.averagePace = averagePace
+                currentRun = updatedRun
+            }
         }
         
         // Add to route only if movement is significant

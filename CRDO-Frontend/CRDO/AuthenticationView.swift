@@ -361,6 +361,7 @@ struct AuthenticationView: View {
                             .background(Color.gold)
                             .cornerRadius(25)
                         }
+                        .buttonStyle(PlainButtonStyle())
                         .disabled(authTracker.isLoading)
                         .padding(.horizontal, 30)
                         
@@ -383,6 +384,7 @@ struct AuthenticationView: View {
                                     .stroke(Color.white.opacity(0.3), lineWidth: 1)
                             )
                         }
+                        .buttonStyle(PlainButtonStyle())
                         .padding(.horizontal, 30)
                         .padding(.top, 10)
                         
@@ -392,16 +394,14 @@ struct AuthenticationView: View {
                                 .foregroundColor(.gray)
                             
                             Button(action: {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    isSignUp.toggle()
-                                    email = ""
-                                    password = ""
-                                    confirmPassword = ""
-                                    firstName = ""
-                                    lastName = ""
-                                    rememberMe = false
-                                    errorMessage = ""
-                                }
+                                isSignUp.toggle()
+                                email = ""
+                                password = ""
+                                confirmPassword = ""
+                                firstName = ""
+                                lastName = ""
+                                rememberMe = false
+                                errorMessage = ""
                             }) {
                                 Text(isSignUp ? "Sign In" : "Sign Up")
                                     .foregroundColor(.gold)

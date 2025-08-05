@@ -909,11 +909,11 @@ struct Achievement: Identifiable, Codable {
     let description: String
     let icon: String
     let category: AchievementCategory
-    let isUnlocked: Bool
-    let unlockedDate: Date?
-    let progress: Double // 0.0 to 1.0
+    var isUnlocked: Bool
+    var unlockedDate: Date?
+    var progress: Double // 0.0 to 1.0
     let target: Int
-    let current: Int
+    var current: Int
 }
 
 enum AchievementCategory: String, CaseIterable, Codable {
@@ -922,6 +922,14 @@ enum AchievementCategory: String, CaseIterable, Codable {
     case consistency = "Consistency"
     case social = "Social"
     case special = "Special"
+    case frequency = "Frequency"
+    case milestone = "Milestone"
+    case challenge = "Challenge"
+    case unique = "Unique"
+    case community = "Community"
+    case seasonal = "Seasonal"
+    case records = "Records"
+    case app = "App"
     
     var color: Color {
         switch self {
@@ -930,6 +938,319 @@ enum AchievementCategory: String, CaseIterable, Codable {
         case .consistency: return .green
         case .social: return .purple
         case .special: return .gold
+        case .frequency: return .indigo
+        case .milestone: return .mint
+        case .challenge: return .red
+        case .unique: return .pink
+        case .community: return .teal
+        case .seasonal: return .brown
+        case .records: return .yellow
+        case .app: return .gray
         }
+    }
+} 
+
+// MARK: - Achievement System
+
+class AchievementManager: ObservableObject {
+    static let shared = AchievementManager()
+    
+    @Published var achievements: [Achievement] = []
+    @Published var unlockedAchievements: Set<String> = []
+    
+    private init() {
+        loadAchievements()
+        calculateAchievements()
+    }
+    
+    private func loadAchievements() {
+        // Initialize all achievements with default values
+        achievements = [
+            // Distance Achievements
+            Achievement(
+                title: "First Steps",
+                description: "Complete your first run",
+                icon: "figure.run",
+                category: .distance,
+                isUnlocked: false,
+                unlockedDate: nil,
+                progress: 0.0,
+                target: 1,
+                current: 0
+            ),
+            Achievement(
+                title: "5K Runner",
+                description: "Run 5 kilometers in a single session",
+                icon: "flag.checkered",
+                category: .distance,
+                isUnlocked: false,
+                unlockedDate: nil,
+                progress: 0.0,
+                target: 5000,
+                current: 0
+            ),
+            Achievement(
+                title: "10K Runner",
+                description: "Run 10 kilometers in a single session",
+                icon: "flag.checkered.2",
+                category: .distance,
+                isUnlocked: false,
+                unlockedDate: nil,
+                progress: 0.0,
+                target: 10000,
+                current: 0
+            ),
+            
+            // Speed Achievements
+            Achievement(
+                title: "Speed Demon",
+                description: "Achieve a pace faster than 7:00 min/mi",
+                icon: "bolt.fill",
+                category: .speed,
+                isUnlocked: false,
+                unlockedDate: nil,
+                progress: 0.0,
+                target: 420, // 7:00 min/mi in seconds
+                current: 0
+            ),
+            Achievement(
+                title: "Sprint King",
+                description: "Achieve a pace faster than 6:00 min/mi",
+                icon: "bolt.circle.fill",
+                category: .speed,
+                isUnlocked: false,
+                unlockedDate: nil,
+                progress: 0.0,
+                target: 360, // 6:00 min/mi in seconds
+                current: 0
+            ),
+            
+            // Consistency Achievements
+            Achievement(
+                title: "Consistency King",
+                description: "Run 7 days in a row",
+                icon: "calendar",
+                category: .consistency,
+                isUnlocked: false,
+                unlockedDate: nil,
+                progress: 0.0,
+                target: 7,
+                current: 0
+            ),
+            Achievement(
+                title: "Streak Master",
+                description: "Run 30 days in a row",
+                icon: "calendar.badge.plus",
+                category: .consistency,
+                isUnlocked: false,
+                unlockedDate: nil,
+                progress: 0.0,
+                target: 30,
+                current: 0
+            ),
+            
+            // Frequency Achievements
+            Achievement(
+                title: "Frequent Runner",
+                description: "Complete 10 runs",
+                icon: "number.circle",
+                category: .frequency,
+                isUnlocked: false,
+                unlockedDate: nil,
+                progress: 0.0,
+                target: 10,
+                current: 0
+            ),
+            Achievement(
+                title: "Dedicated Runner",
+                description: "Complete 50 runs",
+                icon: "number.circle.fill",
+                category: .frequency,
+                isUnlocked: false,
+                unlockedDate: nil,
+                progress: 0.0,
+                target: 50,
+                current: 0
+            ),
+            
+            // Social Achievements
+            Achievement(
+                title: "Social Butterfly",
+                description: "Add 5 friends",
+                icon: "person.2.fill",
+                category: .social,
+                isUnlocked: false,
+                unlockedDate: nil,
+                progress: 0.0,
+                target: 5,
+                current: 0
+            )
+        ]
+        
+        // Load unlocked achievements from UserDefaults
+        if let unlockedData = UserDefaults.standard.array(forKey: "unlockedAchievements") as? [String] {
+            unlockedAchievements = Set(unlockedData)
+        }
+    }
+    
+    func calculateAchievements() {
+        // Get the RunManager instance from the main app
+        guard let runManager = RunManager.currentInstance else {
+            print("❌ Could not find RunManager instance")
+            return
+        }
+        let recentRuns = runManager.recentRuns
+        
+        // Calculate total runs
+        let totalRuns = recentRuns.count
+        
+        // Calculate total distance (unused for now but kept for future use)
+        _ = recentRuns.reduce(0.0) { $0 + $1.distance }
+        
+        // Calculate best single run distance
+        let bestSingleRunDistance = recentRuns.map { $0.distance }.max() ?? 0.0
+        
+        // Calculate best pace
+        let bestPace = recentRuns.map { $0.averagePace }.min() ?? Double.infinity
+        
+        // Calculate streak
+        let currentStreak = calculateCurrentStreak(runs: recentRuns)
+        
+        // Update achievements based on real data
+        for i in 0..<achievements.count {
+            var achievement = achievements[i]
+            
+            switch achievement.title {
+            case "First Steps":
+                achievement.current = totalRuns
+                achievement.progress = min(Double(totalRuns), 1.0)
+                achievement.isUnlocked = totalRuns >= 1
+                if achievement.isUnlocked && achievement.unlockedDate == nil {
+                    achievement.unlockedDate = Date()
+                    unlockedAchievements.insert(achievement.title)
+                }
+                
+            case "5K Runner":
+                achievement.current = Int(bestSingleRunDistance)
+                achievement.progress = min(bestSingleRunDistance / 5000.0, 1.0)
+                achievement.isUnlocked = bestSingleRunDistance >= 5000
+                if achievement.isUnlocked && achievement.unlockedDate == nil {
+                    achievement.unlockedDate = Date()
+                    unlockedAchievements.insert(achievement.title)
+                }
+                
+            case "10K Runner":
+                achievement.current = Int(bestSingleRunDistance)
+                achievement.progress = min(bestSingleRunDistance / 10000.0, 1.0)
+                achievement.isUnlocked = bestSingleRunDistance >= 10000
+                if achievement.isUnlocked && achievement.unlockedDate == nil {
+                    achievement.unlockedDate = Date()
+                    unlockedAchievements.insert(achievement.title)
+                }
+                
+            case "Speed Demon":
+                // Convert pace to seconds (lower is faster)
+                let paceInSeconds = bestPace == Double.infinity ? Double.infinity : bestPace
+                achievement.current = Int(paceInSeconds)
+                achievement.progress = paceInSeconds == Double.infinity ? 0.0 : max(0.0, (420.0 - paceInSeconds) / 420.0)
+                achievement.isUnlocked = paceInSeconds <= 420.0
+                if achievement.isUnlocked && achievement.unlockedDate == nil {
+                    achievement.unlockedDate = Date()
+                    unlockedAchievements.insert(achievement.title)
+                }
+                
+            case "Sprint King":
+                let paceInSeconds = bestPace == Double.infinity ? Double.infinity : bestPace
+                achievement.current = Int(paceInSeconds)
+                achievement.progress = paceInSeconds == Double.infinity ? 0.0 : max(0.0, (360.0 - paceInSeconds) / 360.0)
+                achievement.isUnlocked = paceInSeconds <= 360.0
+                if achievement.isUnlocked && achievement.unlockedDate == nil {
+                    achievement.unlockedDate = Date()
+                    unlockedAchievements.insert(achievement.title)
+                }
+                
+            case "Consistency King":
+                achievement.current = currentStreak
+                achievement.progress = min(Double(currentStreak) / 7.0, 1.0)
+                achievement.isUnlocked = currentStreak >= 7
+                if achievement.isUnlocked && achievement.unlockedDate == nil {
+                    achievement.unlockedDate = Date()
+                    unlockedAchievements.insert(achievement.title)
+                }
+                
+            case "Streak Master":
+                achievement.current = currentStreak
+                achievement.progress = min(Double(currentStreak) / 30.0, 1.0)
+                achievement.isUnlocked = currentStreak >= 30
+                if achievement.isUnlocked && achievement.unlockedDate == nil {
+                    achievement.unlockedDate = Date()
+                    unlockedAchievements.insert(achievement.title)
+                }
+                
+            case "Frequent Runner":
+                achievement.current = totalRuns
+                achievement.progress = min(Double(totalRuns) / 10.0, 1.0)
+                achievement.isUnlocked = totalRuns >= 10
+                if achievement.isUnlocked && achievement.unlockedDate == nil {
+                    achievement.unlockedDate = Date()
+                    unlockedAchievements.insert(achievement.title)
+                }
+                
+            case "Dedicated Runner":
+                achievement.current = totalRuns
+                achievement.progress = min(Double(totalRuns) / 50.0, 1.0)
+                achievement.isUnlocked = totalRuns >= 50
+                if achievement.isUnlocked && achievement.unlockedDate == nil {
+                    achievement.unlockedDate = Date()
+                    unlockedAchievements.insert(achievement.title)
+                }
+                
+            case "Social Butterfly":
+                // For now, set to 0 - would need friend system integration
+                achievement.current = 0
+                achievement.progress = 0.0
+                achievement.isUnlocked = false
+                
+            default:
+                break
+            }
+            
+            achievements[i] = achievement
+        }
+        
+        // Save unlocked achievements
+        UserDefaults.standard.set(Array(unlockedAchievements), forKey: "unlockedAchievements")
+    }
+    
+    private func calculateCurrentStreak(runs: [RunSession]) -> Int {
+        guard !runs.isEmpty else { return 0 }
+        
+        let calendar = Calendar.current
+        let today = Date()
+        var streak = 0
+        
+        // Sort runs by date (most recent first)
+        let sortedRuns = runs.sorted { $0.startTime > $1.startTime }
+        
+        for dayOffset in 0...365 { // Check up to a year back
+            let checkDate = calendar.date(byAdding: .day, value: -dayOffset, to: today) ?? today
+            
+            // Check if there's a run on this date
+            let hasRunOnDate = sortedRuns.contains { run in
+                calendar.isDate(run.startTime, inSameDayAs: checkDate)
+            }
+            
+            if hasRunOnDate {
+                streak += 1
+            } else {
+                break // Streak broken
+            }
+        }
+        
+        return streak
+    }
+    
+    func refreshAchievements() {
+        calculateAchievements()
     }
 } 

@@ -17,75 +17,8 @@ struct ProfileView: View {
     @State private var showingAchievements = false
     @State private var scrollOffset: CGFloat = 0
     
-    // Mock achievements data
-    @State private var achievements: [Achievement] = [
-        Achievement(
-            title: "First Steps",
-            description: "Complete your first run",
-            icon: "figure.run",
-            category: .distance,
-            isUnlocked: true,
-            unlockedDate: Date().addingTimeInterval(-86400 * 7),
-            progress: 1.0,
-            target: 1,
-            current: 1
-        ),
-        Achievement(
-            title: "5K Runner",
-            description: "Run 5 kilometers in a single session",
-            icon: "flag.checkered",
-            category: .distance,
-            isUnlocked: true,
-            unlockedDate: Date().addingTimeInterval(-86400 * 3),
-            progress: 1.0,
-            target: 5000,
-            current: 5000
-        ),
-        Achievement(
-            title: "Speed Demon",
-            description: "Achieve a pace faster than 7:00 min/mi",
-            icon: "bolt.fill",
-            category: .speed,
-            isUnlocked: false,
-            unlockedDate: nil,
-            progress: 0.6,
-            target: 420, // 7:00 min/mi in seconds
-            current: 252
-        ),
-        Achievement(
-            title: "Consistency King",
-            description: "Run 7 days in a row",
-            icon: "calendar",
-            category: .consistency,
-            isUnlocked: false,
-            unlockedDate: nil,
-            progress: 0.4,
-            target: 7,
-            current: 3
-        ),
-        Achievement(
-            title: "Social Butterfly",
-            description: "Add 5 friends",
-            icon: "person.2.fill",
-            category: .social,
-            isUnlocked: false,
-            unlockedDate: nil,
-            progress: 0.2,
-            target: 5,
-            current: 1
-        ),
-        Achievement(
-            title: "Marathon Ready",
-            description: "Run 26.2 miles total",
-            icon: "trophy.fill",
-            category: .special,
-            isUnlocked: false,
-            unlockedDate: nil,
-            progress: 0.1,
-            target: 42195,
-            current: 4219
-        )
-    ]
+    // Real achievements data - will be loaded from backend
+    @StateObject private var achievementManager = AchievementManager.shared
     
     var body: some View {
         NavigationView {
@@ -120,9 +53,10 @@ struct ProfileView: View {
                         
                         // Achievements section with fade-in
                         AchievementsSection(
-                            achievements: achievements,
+                            achievements: achievementManager.achievements,
                             showingAchievements: $showingAchievements,
-                            scrollOffset: scrollOffset
+                            scrollOffset: scrollOffset,
+                            isLoading: false
                         )
                         .opacity(max(0.3, 1.0 - scrollOffset / 200))
                         
@@ -164,15 +98,22 @@ struct ProfileView: View {
                 }
             }
             .sheet(isPresented: $showingAchievements) {
-                AchievementsView(achievements: achievements)
+                AchievementsView(achievements: achievementManager.achievements)
             }
         }
         .onAppear {
             // Load user bio from UserDefaults
             userBio = UserDefaults.standard.string(forKey: "userBio") ?? "Runner"
+            
+            // Refresh achievements based on current data
+            achievementManager.refreshAchievements()
         }
     }
+    
+
 }
+
+
 
 // MARK: - Profile Header Section
 
@@ -217,6 +158,7 @@ struct ProfileHeaderSection: View {
                                 isEditingBio = false
                             }
                             .foregroundColor(.gray)
+                            .buttonStyle(PlainButtonStyle())
                             
                             Spacer()
                             
@@ -225,6 +167,7 @@ struct ProfileHeaderSection: View {
                                 isEditingBio = false
                             }
                             .foregroundColor(.gold)
+                            .buttonStyle(PlainButtonStyle())
                         }
                         .font(.caption)
                     }
@@ -327,6 +270,7 @@ struct AchievementsSection: View {
     let achievements: [Achievement]
     @Binding var showingAchievements: Bool
     let scrollOffset: CGFloat
+    let isLoading: Bool
     
     var unlockedAchievements: [Achievement] {
         achievements.filter { $0.isUnlocked }
@@ -348,13 +292,26 @@ struct AchievementsSection: View {
             }
             .padding(.horizontal)
             
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 15) {
-                    ForEach(Array(unlockedAchievements.prefix(3))) { achievement in
-                        AchievementCard(achievement: achievement)
-                    }
+            if isLoading {
+                HStack {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .gold))
+                        .scaleEffect(0.8)
+                    Text("Loading achievements...")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                 }
-                .padding(.horizontal)
+                .frame(maxWidth: .infinity)
+                .padding()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 15) {
+                        ForEach(Array(unlockedAchievements.prefix(3))) { achievement in
+                            AchievementCard(achievement: achievement)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
             }
         }
     }

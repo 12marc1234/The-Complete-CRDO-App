@@ -155,8 +155,8 @@ struct MainAppView: View {
                 .padding(.top, 60)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                        withAnimation(.easeInOut(duration: 0.5)) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
                             showAppUpdated = false
                         }
                     }
@@ -164,9 +164,9 @@ struct MainAppView: View {
             }
         }
         .onAppear {
-            // Show APP UPDATED indicator when app loads
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                withAnimation(.easeInOut(duration: 0.5)) {
+            // Show APP UPDATED indicator when app loads (reduced delay)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                withAnimation(.easeInOut(duration: 0.3)) {
                     showAppUpdated = true
                 }
             }

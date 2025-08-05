@@ -271,13 +271,18 @@ class NetworkService: ObservableObject {
                     }
                 },
                 receiveOutput: { data in
+                    // Only log in debug builds to reduce overhead
+                    #if DEBUG
                     print("📱 Response: \(String(data: data, encoding: .utf8) ?? "")")
+                    #endif
                 },
                 receiveCompletion: { completion in
                     DispatchQueue.main.async {
                         if case .failure(let error) = completion {
                             self.lastError = error.localizedDescription
+                            #if DEBUG
                             print("❌ Network error: \(error.localizedDescription)")
+                            #endif
                         }
                     }
                 }

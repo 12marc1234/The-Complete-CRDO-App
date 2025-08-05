@@ -195,8 +195,8 @@ struct BuildingCard: View {
                 showingPurchaseAlert = true
             }
         }
-        .scaleEffect(cityManager.selectedBuildingType == buildingType ? 1.1 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: cityManager.selectedBuildingType)
+        .scaleEffect(cityManager.selectedBuildingType == buildingType ? 1.05 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: cityManager.selectedBuildingType)
         .alert("Purchase Failed", isPresented: $showingPurchaseAlert) {
             Button("OK") { }
         } message: {

@@ -277,6 +277,7 @@ struct StreakSection: View {
                 .background(isRunActive ? Color.orange : Color.green)
                 .cornerRadius(25)
             }
+            .buttonStyle(PlainButtonStyle())
             .padding(.horizontal, 20)
         }
         .padding(.horizontal, 20)
@@ -298,8 +299,8 @@ struct StreakCard: View {
         VStack(spacing: 8) {
             Text(icon)
                 .font(.title2)
-                .scaleEffect(animation ? 1.2 : 1.0)
-                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: animation)
+                .scaleEffect(animation ? 1.1 : 1.0)
+                .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: animation)
             
             Text("\(value)")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
