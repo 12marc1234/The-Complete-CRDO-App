@@ -307,6 +307,7 @@ struct User: Codable {
     let firstName: String?
     let lastName: String?
     let fullName: String?
+    var bio: String? // New field for user bio
 }
 
 struct AuthResponse: Codable {
@@ -404,7 +405,7 @@ struct UserStatsResponse: Codable {
     let user: User?
     let stats: StatsData?
     let streak: StreakData?
-    let achievements: [Achievement]?
+    let achievements: [String]?
     let friends: FriendsData?
     let recentRuns: [RecentRun]?
 }
@@ -422,14 +423,7 @@ struct StatsData: Codable {
     let weeklyDuration: Int
 }
 
-struct Achievement: Codable {
-    let id: String
-    let name: String
-    let description: String
-    let points: Int
-    let gems: Int
-    let earned_at: String?
-}
+
 
 struct FriendsData: Codable {
     let accepted: Int
@@ -451,7 +445,7 @@ struct DashboardResponse: Codable {
     let streak: StreakData?
     let gems: GemsData?
     let recentRuns: [RecentRun]?
-    let recentAchievements: [Achievement]?
+    let recentAchievements: [String]?
 }
 
 struct GemsData: Codable {

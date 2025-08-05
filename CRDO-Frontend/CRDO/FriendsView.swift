@@ -15,6 +15,9 @@ struct FriendsView: View {
     @State private var leaderboardData: [MockLeaderboardEntry] = []
     @State private var selectedTimeframe = 0
     @State private var showingFriendRequests = false
+    @State private var selectedFriend: MockFriend?
+    @State private var showingProfile = false
+    @State private var scrollOffset: CGFloat = 0
     
     private let timeframes = ["This Week", "This Month", "All Time"]
     
@@ -30,25 +33,30 @@ struct FriendsView: View {
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Tab selector
+                    // Tab selector with fade-in
                     Picker("View", selection: $selectedTab) {
                         Text("Friends").tag(0)
                         Text("Leaderboards").tag(1)
                     }
                     .pickerStyle(SegmentedPickerStyle())
                     .padding()
+                    .opacity(max(0.3, 1.0 - scrollOffset / 100))
                     
                     if selectedTab == 0 {
                         FriendsTabView(
                             friends: friends,
                             unitSystem: preferencesManager.preferences.unitSystem,
-                            showingFriendRequests: $showingFriendRequests
+                            showingFriendRequests: $showingFriendRequests,
+                            selectedFriend: $selectedFriend,
+                            showingProfile: $showingProfile,
+                            scrollOffset: scrollOffset
                         )
                     } else {
                         LeaderboardsTabView(
                             leaderboardData: leaderboardData,
                             selectedTimeframe: $selectedTimeframe,
-                            unitSystem: preferencesManager.preferences.unitSystem
+                            unitSystem: preferencesManager.preferences.unitSystem,
+                            scrollOffset: scrollOffset
                         )
                     }
                 }
@@ -65,6 +73,11 @@ struct FriendsView: View {
                     .foregroundColor(.gold)
                 }
             }
+            .sheet(isPresented: $showingProfile) {
+                if let friend = selectedFriend {
+                    FriendProfileView(friend: friend, unitSystem: preferencesManager.preferences.unitSystem)
+                }
+            }
         }
         .onAppear {
             generateMockData()
@@ -72,7 +85,7 @@ struct FriendsView: View {
     }
     
     private func generateMockData() {
-        // Generate mock friends
+        // Generate mock friends with bios
         friends = [
             MockFriend(
                 name: "Sarah Johnson",
@@ -82,7 +95,8 @@ struct FriendsView: View {
                 lastActive: Date(),
                 totalRuns: 45,
                 totalDistance: 125000,
-                averagePace: 280
+                averagePace: 280,
+                bio: "Marathon runner and fitness enthusiast. Love exploring new trails!"
             ),
             MockFriend(
                 name: "Mike Chen",
@@ -92,7 +106,8 @@ struct FriendsView: View {
                 lastActive: Date().addingTimeInterval(-1800),
                 totalRuns: 32,
                 totalDistance: 89000,
-                averagePace: 320
+                averagePace: 320,
+                bio: "Sprint specialist focusing on speed training and interval workouts."
             ),
             MockFriend(
                 name: "Emma Davis",
@@ -102,7 +117,8 @@ struct FriendsView: View {
                 lastActive: Date().addingTimeInterval(-7200),
                 totalRuns: 28,
                 totalDistance: 67000,
-                averagePace: 350
+                averagePace: 350,
+                bio: "Casual runner who enjoys morning jogs and weekend long runs."
             )
         ]
         
@@ -161,6 +177,9 @@ struct FriendsTabView: View {
     let friends: [MockFriend]
     let unitSystem: UnitSystem
     @Binding var showingFriendRequests: Bool
+    @Binding var selectedFriend: MockFriend?
+    @Binding var showingProfile: Bool
+    let scrollOffset: CGFloat
     @State private var friendRequests: [MockFriend] = [
         MockFriend(
             name: "John Smith",
@@ -170,7 +189,8 @@ struct FriendsTabView: View {
             lastActive: Date(),
             totalRuns: 15,
             totalDistance: 45000,
-            averagePace: 300
+            averagePace: 300,
+            bio: "New to running, excited to join the community!"
         ),
         MockFriend(
             name: "Lisa Brown",
@@ -180,22 +200,26 @@ struct FriendsTabView: View {
             lastActive: Date().addingTimeInterval(-3600),
             totalRuns: 22,
             totalDistance: 67000,
-            averagePace: 280
+            averagePace: 280,
+            bio: "Trail runner and nature lover. Always up for a challenge!"
         )
     ]
     @State private var currentFriends: [MockFriend]
     
-    init(friends: [MockFriend], unitSystem: UnitSystem, showingFriendRequests: Binding<Bool>) {
+    init(friends: [MockFriend], unitSystem: UnitSystem, showingFriendRequests: Binding<Bool>, selectedFriend: Binding<MockFriend?>, showingProfile: Binding<Bool>, scrollOffset: CGFloat) {
         self.friends = friends
         self.unitSystem = unitSystem
         self._showingFriendRequests = showingFriendRequests
+        self._selectedFriend = selectedFriend
+        self._showingProfile = showingProfile
+        self.scrollOffset = scrollOffset
         self._currentFriends = State(initialValue: friends)
     }
     
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Friend requests section
+                // Friend requests section with fade-in
                 if !friendRequests.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
@@ -228,9 +252,10 @@ struct FriendsTabView: View {
                         }
                     }
                     .padding(.horizontal)
+                    .opacity(max(0.3, 1.0 - scrollOffset / 200))
                 }
                 
-                // Friends list
+                // Friends list with fade-in
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Your Friends")
                         .font(.headline)
@@ -239,11 +264,19 @@ struct FriendsTabView: View {
                     
                     LazyVStack(spacing: 10) {
                         ForEach(currentFriends) { friend in
-                            FriendCard(friend: friend, unitSystem: unitSystem)
+                            FriendCard(
+                                friend: friend,
+                                unitSystem: unitSystem,
+                                onTap: {
+                                    selectedFriend = friend
+                                    showingProfile = true
+                                }
+                            )
                         }
                     }
                     .padding(.horizontal)
                 }
+                .opacity(max(0.3, 1.0 - scrollOffset / 150))
             }
         }
     }
@@ -344,62 +377,71 @@ struct FriendRequestCard: View {
 struct FriendCard: View {
     let friend: MockFriend
     let unitSystem: UnitSystem
+    let onTap: () -> Void
     
     var body: some View {
-        HStack(spacing: 15) {
-            // Avatar
-            ZStack {
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 50, height: 50)
-                
-                Image(systemName: friend.avatar)
-                    .font(.title2)
-                    .foregroundColor(statusColor)
-            }
-            
-            // Friend info
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(friend.name)
-                        .font(.headline)
-                        .foregroundColor(.white)
-                    
+        Button(action: onTap) {
+            HStack(spacing: 15) {
+                // Avatar
+                ZStack {
                     Circle()
-                        .fill(statusColor)
-                        .frame(width: 8, height: 8)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 50, height: 50)
+                    
+                    Image(systemName: friend.avatar)
+                        .font(.title2)
+                        .foregroundColor(statusColor)
                 }
                 
-                Text("\(friend.totalRuns) runs • \(UnitConverter.formatDistance(friend.totalDistance, unitSystem: unitSystem))")
+                // Friend info
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(friend.name)
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Circle()
+                            .fill(statusColor)
+                            .frame(width: 8, height: 8)
+                    }
+                    
+                    Text("\(friend.totalRuns) runs • \(UnitConverter.formatDistance(friend.totalDistance, unitSystem: unitSystem))")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    
+                    Text("Last active: \(friend.lastActive, style: .relative)")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+                
+                Spacer()
+                
+                // Quick stats
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(UnitConverter.formatPace(friend.averagePace, unitSystem: unitSystem))
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.orange)
+                    
+                    Text("avg pace")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+                
+                // Chevron indicator
+                Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundColor(.gray)
-                
-                Text("Last active: \(friend.lastActive, style: .relative)")
-                    .font(.caption2)
-                    .foregroundColor(.gray)
             }
-            
-            Spacer()
-            
-            // Quick stats
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(UnitConverter.formatPace(friend.averagePace, unitSystem: unitSystem))
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.orange)
-                
-                Text("avg pace")
-                    .font(.caption2)
-                    .foregroundColor(.gray)
-            }
+            .padding()
+            .background(Color.black.opacity(0.3))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+            )
         }
-        .padding()
-        .background(Color.black.opacity(0.3))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-        )
+        .buttonStyle(PlainButtonStyle())
     }
     
     private var statusColor: Color {
@@ -418,12 +460,13 @@ struct LeaderboardsTabView: View {
     let leaderboardData: [MockLeaderboardEntry]
     @Binding var selectedTimeframe: Int
     let unitSystem: UnitSystem
+    let scrollOffset: CGFloat
     
     private let timeframes = ["This Week", "This Month", "All Time"]
     
     var body: some View {
         VStack(spacing: 0) {
-            // Timeframe selector
+            // Timeframe selector with fade-in
             Picker("Timeframe", selection: $selectedTimeframe) {
                 ForEach(0..<timeframes.count, id: \.self) { index in
                     Text(timeframes[index]).tag(index)
@@ -431,8 +474,9 @@ struct LeaderboardsTabView: View {
             }
             .pickerStyle(SegmentedPickerStyle())
             .padding()
+            .opacity(max(0.3, 1.0 - scrollOffset / 100))
             
-            // Leaderboard
+            // Leaderboard with fade-in
             ScrollView {
                 LazyVStack(spacing: 10) {
                     ForEach(leaderboardData) { entry in
@@ -441,6 +485,7 @@ struct LeaderboardsTabView: View {
                 }
                 .padding()
             }
+            .opacity(max(0.3, 1.0 - scrollOffset / 150))
         }
     }
 }
@@ -513,4 +558,218 @@ struct LeaderboardCard: View {
 
 #Preview {
     FriendsView()
+}
+
+// MARK: - Helper Functions
+
+func formatRelativeDate(_ date: Date) -> String {
+    let formatter = RelativeDateTimeFormatter()
+    formatter.unitsStyle = .abbreviated
+    return formatter.localizedString(for: date, relativeTo: Date())
+}
+
+// MARK: - Friend Profile View
+
+struct FriendProfileView: View {
+    let friend: MockFriend
+    let unitSystem: UnitSystem
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedTab = 0
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Background
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 30) {
+                        // Profile header
+                        VStack(spacing: 20) {
+                            // Avatar
+                            ZStack {
+                                Circle()
+                                    .fill(Color.gold.opacity(0.3))
+                                    .frame(width: 100, height: 100)
+                                
+                                Image(systemName: friend.avatar)
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.gold)
+                            }
+                            
+                            // Friend info
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Text(friend.name)
+                                        .font(.title2)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                    
+                                    Circle()
+                                        .fill(statusColor)
+                                        .frame(width: 12, height: 12)
+                                }
+                                
+                                Text(friend.bio)
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                            }
+                        }
+                        .padding(.top, 20)
+                        
+                        // Stats summary
+                        VStack(alignment: .leading, spacing: 15) {
+                            Text("Stats")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.horizontal)
+                            
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 15) {
+                                StatCard(
+                                    title: "Total Runs",
+                                    value: "\(friend.totalRuns)",
+                                    subtitle: "Lifetime",
+                                    color: .blue
+                                )
+                                
+                                StatCard(
+                                    title: "Total Distance",
+                                    value: UnitConverter.formatDistance(friend.totalDistance, unitSystem: unitSystem),
+                                    subtitle: "Lifetime",
+                                    color: .green
+                                )
+                                
+                                StatCard(
+                                    title: "Average Pace",
+                                    value: UnitConverter.formatPace(friend.averagePace, unitSystem: unitSystem),
+                                    subtitle: "Lifetime",
+                                    color: .orange
+                                )
+                                
+                                StatCard(
+                                    title: "Last Active",
+                                    value: friend.lastActive.timeIntervalSinceNow > -3600 ? "Now" : formatRelativeDate(friend.lastActive),
+                                    subtitle: "Status",
+                                    color: .purple
+                                )
+                            }
+                            .padding(.horizontal)
+                        }
+                        
+                        // Recent activity (mock data)
+                        VStack(alignment: .leading, spacing: 15) {
+                            Text("Recent Activity")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.horizontal)
+                            
+                            VStack(spacing: 10) {
+                                ForEach(1...3, id: \.self) { index in
+                                    RecentActivityCard(
+                                        title: "Morning Run",
+                                        distance: Double.random(in: 3000...8000),
+                                        duration: TimeInterval.random(in: 1200...3600),
+                                        date: Date().addingTimeInterval(-Double(index) * 86400),
+                                        unitSystem: unitSystem
+                                    )
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                        
+                        Spacer()
+                    }
+                }
+            }
+            .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(.gold)
+                }
+            }
+        }
+    }
+    
+    private var statusColor: Color {
+        switch friend.status {
+        case .online:
+            return .green
+        case .running:
+            return .blue
+        case .offline:
+            return .gray
+        }
+    }
+}
+
+struct RecentActivityCard: View {
+    let title: String
+    let distance: Double
+    let duration: TimeInterval
+    let date: Date
+    let unitSystem: UnitSystem
+    
+    var body: some View {
+        HStack(spacing: 15) {
+            // Activity icon
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.3))
+                    .frame(width: 40, height: 40)
+                
+                Image(systemName: "figure.run")
+                    .font(.title3)
+                    .foregroundColor(.blue)
+            }
+            
+            // Activity info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                Text("\(UnitConverter.formatDistance(distance, unitSystem: unitSystem)) • \(UnitConverter.formatDuration(duration))")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                
+                Text(date, style: .relative)
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+            }
+            
+            Spacer()
+            
+            // Pace
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(UnitConverter.formatPace(duration / (distance / 1000), unitSystem: unitSystem))
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.orange)
+                
+                Text("pace")
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding()
+        .background(Color.black.opacity(0.3))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+    }
 } 

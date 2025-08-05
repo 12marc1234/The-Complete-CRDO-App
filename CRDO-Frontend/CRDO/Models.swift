@@ -328,6 +328,7 @@ struct MockFriend: Identifiable {
     let totalRuns: Int
     let totalDistance: Double
     let averagePace: Double
+    let bio: String // New field for friend bio
 }
 
 enum FriendStatus {
@@ -871,6 +872,41 @@ class CityManager: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: "cityData"),
            let buildings = try? JSONDecoder().decode([Building].self, from: data) {
             self.buildings = buildings
+        }
+    }
+} 
+
+
+
+// MARK: - Achievement Models
+
+struct Achievement: Identifiable, Codable {
+    let id = UUID()
+    let title: String
+    let description: String
+    let icon: String
+    let category: AchievementCategory
+    let isUnlocked: Bool
+    let unlockedDate: Date?
+    let progress: Double // 0.0 to 1.0
+    let target: Int
+    let current: Int
+}
+
+enum AchievementCategory: String, CaseIterable, Codable {
+    case distance = "Distance"
+    case speed = "Speed"
+    case consistency = "Consistency"
+    case social = "Social"
+    case special = "Special"
+    
+    var color: Color {
+        switch self {
+        case .distance: return .blue
+        case .speed: return .orange
+        case .consistency: return .green
+        case .social: return .purple
+        case .special: return .gold
         }
     }
 } 
