@@ -241,8 +241,12 @@ class NetworkService: ObservableObject {
             request.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
         default:
             // Use stored token for other endpoints
-            if let token = UserDefaults.standard.string(forKey: "authToken") {
+            if let token = DataManager.shared.getAuthToken() {
                 request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            } else {
+                // If no token, use anon key as fallback
+                let anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+                request.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
             }
         }
         
