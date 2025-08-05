@@ -92,8 +92,8 @@ class RunManager: NSObject, ObservableObject {
             saveRecentRuns()
             currentRun = nil
             
-            // Update daily goal progress
-            dailySecondsCompleted += Int(updatedRun.duration)
+            // Update daily progress (persists even when logging out)
+            GemsManager.shared.addDailyProgress(seconds: Int(updatedRun.duration))
             
             // Recalculate stats
             calculateStats()
@@ -135,6 +135,9 @@ class RunManager: NSObject, ObservableObject {
         
         // Add to recent runs
         recentRuns.insert(updatedRun, at: 0)
+        
+        // Update daily progress (persists even when logging out)
+        GemsManager.shared.addDailyProgress(seconds: Int(finalDuration))
         
         // Reset current run
         currentRun = nil

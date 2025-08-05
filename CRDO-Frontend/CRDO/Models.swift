@@ -65,31 +65,98 @@ class GemsManager: ObservableObject {
     @Published var totalGems: Int = 0
     @Published var gemsEarnedToday: Int = 0
     @Published var lastRunDate: Date?
+    @Published var dailySecondsCompleted: Int = 0
+    @Published var dailyMinutesGoal: Int = 15
     
     private init() {
         loadGemsData()
+        checkDailyReset()
     }
     
     private func loadGemsData() {
         totalGems = UserDefaults.standard.integer(forKey: "totalGems")
         gemsEarnedToday = UserDefaults.standard.integer(forKey: "gemsEarnedToday")
         lastRunDate = UserDefaults.standard.object(forKey: "lastRunDate") as? Date
+        dailySecondsCompleted = UserDefaults.standard.integer(forKey: "dailySecondsCompleted")
+        dailyMinutesGoal = UserDefaults.standard.integer(forKey: "dailyMinutesGoal")
+        
+        // Set default goal if not set
+        if dailyMinutesGoal == 0 {
+            dailyMinutesGoal = 15
+        }
         
         print("🔮 GemsManager - Loaded Data:")
         print("   Total Gems: \(totalGems)")
         print("   Gems Earned Today: \(gemsEarnedToday)")
         print("   Last Run Date: \(lastRunDate?.description ?? "None")")
+        print("   Daily Seconds Completed: \(dailySecondsCompleted)")
+        print("   Daily Minutes Goal: \(dailyMinutesGoal)")
     }
     
     private func saveGemsData() {
         UserDefaults.standard.set(totalGems, forKey: "totalGems")
         UserDefaults.standard.set(gemsEarnedToday, forKey: "gemsEarnedToday")
         UserDefaults.standard.set(lastRunDate, forKey: "lastRunDate")
+        UserDefaults.standard.set(dailySecondsCompleted, forKey: "dailySecondsCompleted")
+        UserDefaults.standard.set(dailyMinutesGoal, forKey: "dailyMinutesGoal")
         
         print("💾 GemsManager - Saved Data:")
         print("   Total Gems: \(totalGems)")
         print("   Gems Earned Today: \(gemsEarnedToday)")
         print("   Last Run Date: \(lastRunDate?.description ?? "None")")
+        print("   Daily Seconds Completed: \(dailySecondsCompleted)")
+        print("   Daily Minutes Goal: \(dailyMinutesGoal)")
+    }
+    
+    private func checkDailyReset() {
+        let calendar = Calendar.current
+        let today = Date()
+        
+        if let lastRun = lastRunDate {
+            if !calendar.isDate(lastRun, inSameDayAs: today) {
+                // New day, reset daily progress
+                gemsEarnedToday = 0
+                dailySecondsCompleted = 0
+                lastRunDate = today
+                saveGemsData()
+                print("🔄 Daily progress reset for new day")
+            }
+        } else {
+            // First time running, set today as last run date
+            lastRunDate = today
+            saveGemsData()
+        }
+    }
+    
+    func addDailyProgress(seconds: Int) {
+        dailySecondsCompleted += seconds
+        checkDailyReset() // Check if it's a new day
+        saveGemsData()
+        print("⏱️ Added \(seconds) seconds to daily progress. Total: \(dailySecondsCompleted)")
+    }
+    
+    func setDailyGoal(minutes: Int) {
+        dailyMinutesGoal = minutes
+        saveGemsData()
+        print("🎯 Daily goal set to \(minutes) minutes")
+    }
+    
+    var dailyProgressPercentage: Double {
+        let goalSeconds = dailyMinutesGoal * 60
+        return goalSeconds > 0 ? Double(dailySecondsCompleted) / Double(goalSeconds) : 0.0
+    }
+    
+    var dailyProgressText: String {
+        let goalSeconds = dailyMinutesGoal * 60
+        let remainingSeconds = max(0, goalSeconds - dailySecondsCompleted)
+        let remainingMinutes = remainingSeconds / 60
+        let remainingSecs = remainingSeconds % 60
+        
+        if remainingSeconds == 0 {
+            return "Goal completed! 🎉"
+        } else {
+            return "\(remainingMinutes)m \(remainingSecs)s remaining"
+        }
     }
     
     func calculateGemsForRun(distance: Double, averageSpeed: Double) -> Int {
@@ -461,7 +528,7 @@ struct UnitConverter {
     }
 } 
 
-// MARK: - City and Building Models
+// MARK: - Building Types
 
 enum BuildingType: String, CaseIterable, Codable {
     case house = "House"
@@ -473,12 +540,23 @@ enum BuildingType: String, CaseIterable, Codable {
     
     var cost: Int {
         switch self {
-        case .house: return 15
-        case .park: return 75
-        case .office: return 100
-        case .mall: return 200
-        case .skyscraper: return 250
-        case .monument: return 500
+        case .house: return 50
+        case .park: return 100
+        case .office: return 200
+        case .mall: return 300
+        case .skyscraper: return 500
+        case .monument: return 1000
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .house: return .orange
+        case .park: return .green
+        case .office: return .blue
+        case .mall: return .purple
+        case .skyscraper: return .gray
+        case .monument: return .gold
         }
     }
     
@@ -493,14 +571,25 @@ enum BuildingType: String, CaseIterable, Codable {
         }
     }
     
-    var color: Color {
+    var description: String {
         switch self {
-        case .house: return .orange
-        case .park: return .green
-        case .office: return .blue
-        case .mall: return .purple
-        case .skyscraper: return .gray
-        case .monument: return .yellow
+        case .house: return "Cozy home"
+        case .park: return "Green space"
+        case .office: return "Work place"
+        case .mall: return "Shopping center"
+        case .skyscraper: return "Tall tower"
+        case .monument: return "Landmark"
+        }
+    }
+    
+    var realisticIcon: String {
+        switch self {
+        case .house: return "🏠"
+        case .park: return "🌳"
+        case .office: return "🏢"
+        case .mall: return "🏬"
+        case .skyscraper: return "🏙️"
+        case .monument: return "🗽"
         }
     }
     
@@ -536,25 +625,107 @@ class CityManager: ObservableObject {
     @Published var buildings: [Building] = []
     @Published var selectedBuildingType: BuildingType?
     @Published var isPlacingBuilding = false
+    @Published var canUndo: Bool = false
+    @Published var canRedo: Bool = false
+    
+    // Undo/Redo stacks
+    private var undoStack: [[Building]] = []
+    private var redoStack: [[Building]] = []
+    private let maxUndoSteps = 20
     
     private init() {
         loadCityData()
+        // Save initial state for undo
+        if !buildings.isEmpty {
+            saveStateForUndo()
+        }
     }
     
     func purchaseBuilding(_ type: BuildingType, at position: CGPoint) -> Bool {
         let gemsManager = GemsManager.shared
         
         if gemsManager.spendGems(type.cost) {
+            // Save current state for undo
+            saveStateForUndo()
+            
             let building = Building(type: type, position: position)
             buildings.append(building)
             saveCityData()
+            
+            // Clear redo stack when new action is performed
+            redoStack.removeAll()
+            canRedo = false
+            canUndo = true
+            
             return true
         }
         return false
     }
     
+    func removeBuilding(_ building: Building) {
+        // Save current state for undo
+        saveStateForUndo()
+        
+        buildings.removeAll { $0.id == building.id }
+        saveCityData()
+        
+        // Clear redo stack when new action is performed
+        redoStack.removeAll()
+        canRedo = false
+        canUndo = true
+    }
+    
+    func undo() {
+        guard !undoStack.isEmpty else { return }
+        
+        // Save current state for redo
+        redoStack.append(buildings)
+        
+        // Restore previous state
+        buildings = undoStack.removeLast()
+        saveCityData()
+        
+        canUndo = !undoStack.isEmpty
+        canRedo = true
+        
+        print("🔄 Undo performed. Buildings: \(buildings.count), Undo stack: \(undoStack.count), Redo stack: \(redoStack.count)")
+    }
+    
+    func redo() {
+        guard !redoStack.isEmpty else { return }
+        
+        // Save current state for undo
+        undoStack.append(buildings)
+        
+        // Restore next state
+        buildings = redoStack.removeLast()
+        saveCityData()
+        
+        canRedo = !redoStack.isEmpty
+        canUndo = true
+        
+        print("🔄 Redo performed. Buildings: \(buildings.count), Undo stack: \(undoStack.count), Redo stack: \(redoStack.count)")
+    }
+    
+    private func saveStateForUndo() {
+        undoStack.append(buildings)
+        
+        // Limit undo stack size
+        if undoStack.count > maxUndoSteps {
+            undoStack.removeFirst()
+        }
+        
+        canUndo = true
+        print("💾 State saved for undo. Buildings: \(buildings.count), Undo stack: \(undoStack.count)")
+    }
+    
     func canPurchaseBuilding(_ type: BuildingType) -> Bool {
         return GemsManager.shared.totalGems >= type.cost
+    }
+    
+    func saveCity() {
+        saveCityData()
+        print("🏙️ City saved successfully!")
     }
     
     func saveCityData() {

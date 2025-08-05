@@ -15,6 +15,7 @@ class AuthenticationTracker: ObservableObject {
     static let shared = AuthenticationTracker()
     
     @Published var isAuthenticated = false
+    @Published var isGuestMode = false
     @Published var currentUser: User?
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -22,17 +23,30 @@ class AuthenticationTracker: ObservableObject {
     var cancellables = Set<AnyCancellable>()
     
     init() {
-        // For testing purposes, start unauthenticated
-        self.isAuthenticated = false
-        
-        // Uncomment the following lines when you want to restore authentication persistence
-        // if UserDefaults.standard.bool(forKey: "isAuthenticated") {
-        //     self.isAuthenticated = true
-        //     if let userData = UserDefaults.standard.data(forKey: "userData"),
-        //        let user = try? JSONDecoder().decode(User.self, from: userData) {
-        //         self.currentUser = user
-        //     }
-        // }
+        // Check if user was previously authenticated
+        if UserDefaults.standard.bool(forKey: "isAuthenticated") {
+            self.isAuthenticated = true
+            if let userData = UserDefaults.standard.data(forKey: "userData"),
+               let user = try? JSONDecoder().decode(User.self, from: userData) {
+                self.currentUser = user
+            }
+        }
+        // Check if user was in guest mode
+        else if UserDefaults.standard.bool(forKey: "isGuestMode") {
+            self.isGuestMode = true
+        }
+    }
+    
+    func enterGuestMode() {
+        isGuestMode = true
+        isAuthenticated = false
+        UserDefaults.standard.set(true, forKey: "isGuestMode")
+        UserDefaults.standard.set(false, forKey: "isAuthenticated")
+    }
+    
+    func exitGuestMode() {
+        isGuestMode = false
+        UserDefaults.standard.set(false, forKey: "isGuestMode")
     }
     
     func signUp(email: String, password: String, firstName: String, lastName: String) {
@@ -52,10 +66,12 @@ class AuthenticationTracker: ObservableObject {
                 receiveValue: { success in
                     DispatchQueue.main.async {
                         self.isAuthenticated = true
+                        self.isGuestMode = false
                         self.errorMessage = nil
                         
                         // Save authentication data
                         UserDefaults.standard.set(true, forKey: "isAuthenticated")
+                        UserDefaults.standard.set(false, forKey: "isGuestMode")
                         
                         // Create and save user data
                         let user = User(id: DataManager.shared.currentUser?.id ?? "", email: email, firstName: firstName, lastName: lastName, fullName: "\(firstName) \(lastName)")
@@ -87,10 +103,12 @@ class AuthenticationTracker: ObservableObject {
                 receiveValue: { success in
                     DispatchQueue.main.async {
                         self.isAuthenticated = true
+                        self.isGuestMode = false
                         self.errorMessage = nil
                         
                         // Save authentication data
                         UserDefaults.standard.set(true, forKey: "isAuthenticated")
+                        UserDefaults.standard.set(false, forKey: "isGuestMode")
                         
                         // Set current user from DataManager
                         if let currentUser = DataManager.shared.currentUser {
@@ -301,6 +319,28 @@ struct AuthenticationView: View {
                         }
                         .disabled(authTracker.isLoading)
                         .padding(.horizontal, 30)
+                        
+                        // Continue as Guest button
+                        Button(action: {
+                            authTracker.enterGuestMode()
+                        }) {
+                            HStack {
+                                Image(systemName: "person.fill")
+                                Text("Continue as Guest")
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Color.gray.opacity(0.3))
+                            .cornerRadius(25)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                        .padding(.horizontal, 30)
+                        .padding(.top, 10)
                         
                         // Toggle between sign up and sign in
                         HStack {

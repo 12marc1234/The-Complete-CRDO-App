@@ -12,6 +12,8 @@ struct CityView: View {
     @ObservedObject var gemsManager = GemsManager.shared
     @State private var dragLocation: CGPoint = .zero
     @State private var isDragging = false
+    @State private var showingSaveAlert = false
+    @State private var showingEditMode = false
     
     var body: some View {
         NavigationView {
@@ -36,6 +38,49 @@ struct CityView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    HStack {
+                        Button(action: {
+                            cityManager.undo()
+                        }) {
+                            Image(systemName: "arrow.uturn.backward")
+                                .foregroundColor(.white)
+                        }
+                        .disabled(!cityManager.canUndo)
+                        
+                        Button(action: {
+                            cityManager.redo()
+                        }) {
+                            Image(systemName: "arrow.uturn.forward")
+                                .foregroundColor(.white)
+                        }
+                        .disabled(!cityManager.canRedo)
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack {
+                        Button(action: {
+                            showingEditMode.toggle()
+                        }) {
+                            Image(systemName: showingEditMode ? "checkmark.circle.fill" : "pencil")
+                                .foregroundColor(.white)
+                        }
+                        
+                        Button(action: {
+                            cityManager.saveCity()
+                            showingSaveAlert = true
+                        }) {
+                            Image(systemName: "square.and.arrow.down")
+                                .foregroundColor(.white)
+                        }
+                    }
+                }
+            }
+            .alert("City Saved!", isPresented: $showingSaveAlert) {
+                Button("OK") { }
+            }
         }
     }
 }
@@ -80,29 +125,37 @@ struct BuildingCard: View {
     @ObservedObject var cityManager = CityManager.shared
     @ObservedObject var gemsManager = GemsManager.shared
     let buildingType: BuildingType
+    @State private var showingPurchaseAlert = false
+    @State private var purchaseError = ""
     
     var body: some View {
         VStack(spacing: 8) {
             ZStack {
-                // 3D building preview
-                RoundedRectangle(cornerRadius: 8)
+                // Enhanced 3D building preview
+                RoundedRectangle(cornerRadius: 12)
                     .fill(
                         LinearGradient(
                             gradient: Gradient(colors: [
-                                buildingType.color.opacity(0.8),
-                                buildingType.color.opacity(0.6)
+                                buildingType.color.opacity(0.9),
+                                buildingType.color.opacity(0.7),
+                                buildingType.color.opacity(0.5)
                             ]),
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 40, height: 40)
-                    .shadow(color: .black.opacity(0.3), radius: 2, x: 1, y: 1)
+                    .frame(width: 50, height: 50)
+                    .shadow(color: .black.opacity(0.4), radius: 4, x: 2, y: 2)
                 
-                Image(systemName: buildingType.icon)
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
+                // Realistic building icon
+                Text(buildingType.realisticIcon)
+                    .font(.title)
+                    .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                
+                // Add depth effect
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(buildingType.color.opacity(0.8), lineWidth: 1)
+                    .frame(width: 50, height: 50)
             }
             
             Text(buildingType.rawValue)
@@ -112,8 +165,8 @@ struct BuildingCard: View {
             
             HStack {
                 Image(systemName: "diamond.fill")
-                    .foregroundColor(.yellow)
                     .font(.caption2)
+                    .foregroundColor(.yellow)
                 
                 Text("\(buildingType.cost)")
                     .font(.caption2)
@@ -121,30 +174,31 @@ struct BuildingCard: View {
                     .foregroundColor(.yellow)
             }
         }
-        .padding()
+        .padding(.horizontal, 8)
+        .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            cityManager.canPurchaseBuilding(buildingType) ? Color.black.opacity(0.4) : Color.red.opacity(0.4),
-                            cityManager.canPurchaseBuilding(buildingType) ? Color.black.opacity(0.2) : Color.red.opacity(0.2)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(Color.white.opacity(0.1))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(buildingType.color.opacity(0.6), lineWidth: 1.5)
-                        .shadow(color: buildingType.color.opacity(0.3), radius: 2, x: 0, y: 0)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
                 )
         )
         .onTapGesture {
-            if cityManager.canPurchaseBuilding(buildingType) {
+            if gemsManager.totalGems >= buildingType.cost {
                 cityManager.selectedBuildingType = buildingType
                 cityManager.isPlacingBuilding = true
+            } else {
+                purchaseError = "Not enough gems! You need \(buildingType.cost) gems but only have \(gemsManager.totalGems)."
+                showingPurchaseAlert = true
             }
+        }
+        .scaleEffect(cityManager.selectedBuildingType == buildingType ? 1.1 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: cityManager.selectedBuildingType)
+        .alert("Purchase Failed", isPresented: $showingPurchaseAlert) {
+            Button("OK") { }
+        } message: {
+            Text(purchaseError)
         }
     }
 }
@@ -157,100 +211,117 @@ struct CityGrid: View {
     
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
-                // Grid background
-                GridBackground()
-                
-                // Placed buildings
-                ForEach(cityManager.buildings) { building in
-                    BuildingView(building: building)
-                        .position(building.position)
-                        .onTapGesture {
-                            // Select building for moving
-                            selectedBuilding = building
-                            cityManager.isPlacingBuilding = true
-                        }
-                        .gesture(
-                            DragGesture()
-                                .onChanged { value in
-                                    if selectedBuilding?.id == building.id {
-                                        dragLocation = value.location
-                                        isDragging = true
-                                    }
-                                }
-                                .onEnded { value in
-                                    if selectedBuilding?.id == building.id {
-                                        let position = value.location
-                                        
-                                        // Ensure position is within bounds
-                                        let clampedPosition = CGPoint(
-                                            x: max(building.type.size.width/2, min(geometry.size.width - building.type.size.width/2, position.x)),
-                                            y: max(building.type.size.height/2, min(geometry.size.height - building.type.size.height/2, position.y))
-                                        )
-                                        
-                                        // Update building position
-                                        if let index = cityManager.buildings.firstIndex(where: { $0.id == building.id }) {
-                                            cityManager.buildings[index].position = clampedPosition
-                                            cityManager.saveCityData()
-                                        }
-                                        
-                                        selectedBuilding = nil
-                                        cityManager.isPlacingBuilding = false
-                                        isDragging = false
-                                    }
-                                }
-                        )
-                }
-                
-                // Dragging preview for new buildings
-                if cityManager.isPlacingBuilding, let selectedType = cityManager.selectedBuildingType, selectedBuilding == nil {
-                    BuildingView(building: Building(type: selectedType, position: dragLocation))
-                        .position(dragLocation)
-                        .opacity(0.7)
-                }
-                
-                // Dragging preview for existing buildings
-                if let selectedBuilding = selectedBuilding, isDragging {
-                    BuildingView(building: selectedBuilding)
-                        .position(dragLocation)
-                        .opacity(0.7)
-                }
-            }
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        if cityManager.isPlacingBuilding && selectedBuilding == nil {
-                            dragLocation = value.location
-                            isDragging = true
-                        }
-                    }
-                    .onEnded { value in
-                        if cityManager.isPlacingBuilding, let selectedType = cityManager.selectedBuildingType, selectedBuilding == nil {
-                            let position = value.location
-                            
-                            // Ensure position is within bounds
-                            let clampedPosition = CGPoint(
-                                x: max(selectedType.size.width/2, min(geometry.size.width - selectedType.size.width/2, position.x)),
-                                y: max(selectedType.size.height/2, min(geometry.size.height - selectedType.size.height/2, position.y))
-                            )
-                            
-                            if cityManager.purchaseBuilding(selectedType, at: clampedPosition) {
-                                print("🏗️ Building purchased: \(selectedType.rawValue) at \(clampedPosition)")
-                            }
-                            
-                            cityManager.isPlacingBuilding = false
-                            cityManager.selectedBuildingType = nil
-                            isDragging = false
-                        }
-                    }
+            CityGridContent(
+                geometry: geometry,
+                dragLocation: $dragLocation,
+                isDragging: $isDragging,
+                selectedBuilding: $selectedBuilding
             )
-            .onTapGesture {
-                if cityManager.isPlacingBuilding && selectedBuilding == nil {
-                    cityManager.isPlacingBuilding = false
-                    cityManager.selectedBuildingType = nil
-                }
-                selectedBuilding = nil
+        }
+    }
+}
+
+struct CityGridContent: View {
+    @ObservedObject var cityManager = CityManager.shared
+    let geometry: GeometryProxy
+    @Binding var dragLocation: CGPoint
+    @Binding var isDragging: Bool
+    @Binding var selectedBuilding: Building?
+    
+    var body: some View {
+        ZStack {
+            // Grid background
+            GridBackground()
+            
+            // Placed buildings
+            ForEach(cityManager.buildings) { building in
+                BuildingView(building: building)
+                    .position(building.position)
+                    .onTapGesture {
+                        // Select building for moving
+                        selectedBuilding = building
+                        cityManager.isPlacingBuilding = true
+                    }
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                if selectedBuilding?.id == building.id {
+                                    dragLocation = value.location
+                                    isDragging = true
+                                }
+                            }
+                            .onEnded { value in
+                                if selectedBuilding?.id == building.id {
+                                    let position = value.location
+                                    
+                                    // Ensure position is within bounds
+                                    let clampedPosition = CGPoint(
+                                        x: max(building.type.size.width/2, min(geometry.size.width - building.type.size.width/2, position.x)),
+                                        y: max(building.type.size.height/2, min(geometry.size.height - building.type.size.height/2, position.y))
+                                    )
+                                    
+                                    // Update building position
+                                    if let index = cityManager.buildings.firstIndex(where: { $0.id == building.id }) {
+                                        cityManager.buildings[index].position = clampedPosition
+                                        cityManager.saveCityData()
+                                    }
+                                    
+                                    selectedBuilding = nil
+                                    cityManager.isPlacingBuilding = false
+                                    isDragging = false
+                                }
+                            }
+                    )
             }
+            
+            // Dragging preview for new buildings
+            if cityManager.isPlacingBuilding, let selectedType = cityManager.selectedBuildingType, selectedBuilding == nil {
+                BuildingView(building: Building(type: selectedType, position: dragLocation))
+                    .position(dragLocation)
+                    .opacity(0.7)
+            }
+            
+            // Dragging preview for existing buildings
+            if let selectedBuilding = selectedBuilding, isDragging {
+                BuildingView(building: selectedBuilding)
+                    .position(dragLocation)
+                    .opacity(0.7)
+            }
+        }
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    if cityManager.isPlacingBuilding && selectedBuilding == nil {
+                        dragLocation = value.location
+                        isDragging = true
+                    }
+                }
+                .onEnded { value in
+                    if cityManager.isPlacingBuilding, let selectedType = cityManager.selectedBuildingType, selectedBuilding == nil {
+                        let position = value.location
+                        
+                        // Ensure position is within bounds
+                        let clampedPosition = CGPoint(
+                            x: max(selectedType.size.width/2, min(geometry.size.width - selectedType.size.width/2, position.x)),
+                            y: max(selectedType.size.height/2, min(geometry.size.height - selectedType.size.height/2, position.y))
+                        )
+                        
+                        if cityManager.purchaseBuilding(selectedType, at: clampedPosition) {
+                            print("🏗️ Building purchased: \(selectedType.rawValue) at \(clampedPosition)")
+                        }
+                        
+                        cityManager.isPlacingBuilding = false
+                        cityManager.selectedBuildingType = nil
+                        isDragging = false
+                    }
+                }
+        )
+        .onTapGesture {
+            if cityManager.isPlacingBuilding && selectedBuilding == nil {
+                cityManager.isPlacingBuilding = false
+                cityManager.selectedBuildingType = nil
+            }
+            selectedBuilding = nil
         }
     }
 }
@@ -302,10 +373,9 @@ struct BuildingView: View {
                     .frame(width: building.type.size.width, height: building.type.size.height)
                     .shadow(color: .black.opacity(0.3), radius: 3, x: 2, y: 2)
                 
-                // Building icon
-                Image(systemName: building.type.icon)
-                    .font(.system(size: building.type.size.width * 0.5))
-                    .foregroundColor(.white)
+                // Realistic building icon
+                Text(building.type.realisticIcon)
+                    .font(.system(size: building.type.size.width * 0.6))
                     .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
             }
             

@@ -44,13 +44,15 @@ struct MainAppView: View {
                     }
                     .tag(1)
                 
-                // Friends Tab
-                FriendsView()
-                    .tabItem {
-                        Image(systemName: "person.2.fill")
-                        Text("Friends")
-                    }
-                    .tag(2)
+                // Friends Tab (only show if authenticated)
+                if authTracker.isAuthenticated {
+                    FriendsView()
+                        .tabItem {
+                            Image(systemName: "person.2.fill")
+                            Text("Friends")
+                        }
+                        .tag(2)
+                }
                 
                 // Profile Tab
                 ProfileView(authTracker: authTracker)
@@ -58,7 +60,7 @@ struct MainAppView: View {
                         Image(systemName: "person.fill")
                         Text("Profile")
                     }
-                    .tag(3)
+                    .tag(authTracker.isAuthenticated ? 3 : 2)
                 
                 // City Tab
                 CityView()
@@ -66,7 +68,7 @@ struct MainAppView: View {
                         Image(systemName: "building.2.fill")
                         Text("City")
                     }
-                    .tag(4)
+                    .tag(authTracker.isAuthenticated ? 4 : 3)
             }
             .accentColor(.gold)
             .onAppear {
@@ -98,29 +100,35 @@ struct MainAppView: View {
                                 .font(.title3)
                             
                             Text("\(gemsManager.totalGems)")
-                                .font(.headline)
+                                .font(.title3)
                                 .fontWeight(.bold)
                                 .foregroundColor(.yellow)
                         }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(20)
                         
-                        if gemsManager.gemsEarnedToday > 0 {
-                            Text("+\(gemsManager.gemsEarnedToday) today")
-                                .font(.caption2)
-                                .foregroundColor(.green)
-                                .fontWeight(.semibold)
+                        // Guest mode indicator
+                        if authTracker.isGuestMode {
+                            HStack(spacing: 4) {
+                                Image(systemName: "person.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                
+                                Text("Guest Mode")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(10)
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.8))
-                    .cornerRadius(20)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
-                    )
                 }
-                .padding(.horizontal, 20)
                 .padding(.top, 60)
+                .padding(.horizontal, 20)
                 
                 Spacer()
             }

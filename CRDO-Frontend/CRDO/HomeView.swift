@@ -49,7 +49,8 @@ struct HomeView: View {
                                 runManager.stopRun()
                             }
                         },
-                        runManager: runManager
+                        runManager: runManager,
+                        gemsManager: gemsManager
                     )
                     
                     // Gems section
@@ -155,6 +156,7 @@ struct StreakSection: View {
     let onStartRun: () -> Void
     let onEndRun: () -> Void
     @ObservedObject var runManager: RunManager
+    @ObservedObject var gemsManager: GemsManager
     
     @State private var glowAnimation = false
     @State private var pulseAnimation = false
@@ -176,7 +178,7 @@ struct StreakSection: View {
                     
                     // Progress circle
                     Circle()
-                        .trim(from: 0, to: min(Double(runManager.dailySecondsCompleted) / Double(runManager.dailyMinutesGoal * 60), 1.0))
+                        .trim(from: 0, to: min(gemsManager.dailyProgressPercentage, 1.0))
                         .stroke(
                             LinearGradient(
                                 gradient: Gradient(colors: [.gold, .orange]),
@@ -187,11 +189,11 @@ struct StreakSection: View {
                         )
                         .frame(width: 120, height: 120)
                         .rotationEffect(.degrees(-90))
-                        .animation(.easeInOut(duration: 0.5), value: runManager.dailySecondsCompleted)
+                        .animation(.easeInOut(duration: 0.5), value: gemsManager.dailySecondsCompleted)
                     
                     // Center content
                     VStack(spacing: 4) {
-                        let totalSeconds = runManager.dailySecondsCompleted
+                        let totalSeconds = gemsManager.dailySecondsCompleted
                         let minutes = totalSeconds / 60
                         let seconds = totalSeconds % 60
                         
