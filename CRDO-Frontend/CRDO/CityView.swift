@@ -148,8 +148,10 @@ struct BuildingCard: View {
                     .shadow(color: .black.opacity(0.4), radius: 4, x: 2, y: 2)
                 
                 // Realistic building icon
-                Text(buildingType.realisticIcon)
-                    .font(.title)
+                Image(buildingType.realisticIcon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 30, height: 30)
                     .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
                 
                 // Add depth effect
@@ -374,8 +376,10 @@ struct BuildingView: View {
                     .shadow(color: .black.opacity(0.3), radius: 3, x: 2, y: 2)
                 
                 // Realistic building icon
-                Text(building.type.realisticIcon)
-                    .font(.system(size: building.type.size.width * 0.6))
+                Image(building.type.realisticIcon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: building.type.size.width * 0.6, height: building.type.size.height * 0.6)
                     .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
             }
             

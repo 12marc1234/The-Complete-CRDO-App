@@ -584,12 +584,12 @@ enum BuildingType: String, CaseIterable, Codable {
     
     var realisticIcon: String {
         switch self {
-        case .house: return "🏠"
-        case .park: return "🌳"
-        case .office: return "🏢"
-        case .mall: return "🏬"
-        case .skyscraper: return "🏙️"
-        case .monument: return "🗽"
+        case .house: return "BuildingHouse"
+        case .park: return "BuildingPark"
+        case .office: return "BuildingOffice"
+        case .mall: return "BuildingMall"
+        case .skyscraper: return "BuildingSkyscraper"
+        case .monument: return "BuildingMonument"
         }
     }
     

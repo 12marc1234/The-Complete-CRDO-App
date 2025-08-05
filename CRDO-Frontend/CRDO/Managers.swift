@@ -52,9 +52,10 @@ class RunManager: NSObject, ObservableObject {
     private func setupLocationManager() {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.distanceFilter = 5
+        locationManager.distanceFilter = 1 // Reduced from 5 to 1 meter for more frequent updates
         locationManager.activityType = .fitness
         locationManager.pausesLocationUpdatesAutomatically = false
+        locationManager.allowsBackgroundLocationUpdates = false
     }
     
     func startRun() {
@@ -73,7 +74,8 @@ class RunManager: NSObject, ObservableObject {
         
         locationManager.startUpdatingLocation()
         
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+        // Update stats more frequently (every 0.5 seconds instead of 1.0)
+        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
             self.updateRunStats()
         }
     }
@@ -190,8 +192,9 @@ class RunManager: NSObject, ObservableObject {
         let distance = location.distance(from: lastLocation)
         let timeInterval = location.timestamp.timeIntervalSince(lastLocation.timestamp)
         
-        // Only add point if it's at least 10 meters away and 5 seconds have passed
-        return distance >= 10 && timeInterval >= 5
+        // More responsive route tracking: add points more frequently
+        // Only add point if it's at least 5 meters away and 2 seconds have passed
+        return distance >= 5 && timeInterval >= 2
     }
     
     private func loadRecentRuns() {
@@ -214,17 +217,10 @@ extension RunManager: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         
-        // Less strict filtering for accuracy
-        guard location.horizontalAccuracy <= 15 else { return } // Increased from 10 to 15 meters
-        guard location.verticalAccuracy <= 20 else { return } // Increased from 15 to 20 meters
-        
-        currentLocation = location
-        
-        // Calculate speed (convert from m/s to mph)
         let speed = location.speed * 2.237 // Convert m/s to mph
         
-        // Less strict speed filtering
-        if speed >= 0.05 && speed <= 20 { // More permissive speed range
+        // More lenient speed filtering
+        if speed >= 0.01 && speed <= 25 { // Much more permissive speed range
             currentSpeed = speed
             speedReadings.append(speed)
             
@@ -242,27 +238,28 @@ extension RunManager: CLLocationManagerDelegate {
             }
         }
         
-        // Calculate distance with less strict filtering
+        // Calculate distance with much less strict filtering
         if let lastLocation = lastLocation {
             let newDistance = location.distance(from: lastLocation)
             let timeInterval = location.timestamp.timeIntervalSince(lastLocation.timestamp)
             let speedMph = location.speed * 2.237
             
-            // Less strict conditions for adding distance:
-            // 1. Distance must be significant (> 5 meters instead of 10)
-            // 2. Speed must be reasonable (> 0.3 mph instead of 1)
-            // 3. Time between readings must be reasonable (> 2 seconds instead of 3)
-            // 4. Speed must be consistent with distance (no teleporting)
+            // Much more lenient conditions for adding distance:
+            // 1. Distance must be at least 1 meter (instead of 5)
+            // 2. Speed must be at least 0.1 mph (instead of 0.3)
+            // 3. Time between readings must be at least 1 second (instead of 2)
+            // 4. Allow for GPS jitter and slow movement
             let expectedDistance = speedMph * 0.447 * timeInterval // Convert mph to m/s and multiply by time
-            let distanceRatio = newDistance / max(expectedDistance, 1) // Avoid division by zero
+            let distanceRatio = newDistance / max(expectedDistance, 0.1) // Avoid division by zero
             
-            if newDistance > 5 && speedMph > 0.3 && timeInterval > 2 && distanceRatio < 5 {
+            if newDistance > 1 && speedMph > 0.1 && timeInterval > 1 && distanceRatio < 10 {
                 distance += newDistance
+                print("📍 Distance added: \(newDistance)m, Total: \(distance)m, Speed: \(speedMph) mph")
             }
         }
         
-        // Calculate pace (minutes per mile)
-        if currentSpeed > 0 {
+        // Calculate pace (minutes per mile) - only if we have meaningful speed
+        if currentSpeed > 0.5 { // Only calculate pace if speed is reasonable
             pace = 60 / currentSpeed // minutes per mile
         }
         
@@ -272,6 +269,9 @@ extension RunManager: CLLocationManagerDelegate {
         }
         
         lastLocation = location
+        
+        // Update stats immediately when new location data arrives
+        updateRunStats()
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {

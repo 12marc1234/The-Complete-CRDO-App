@@ -80,8 +80,8 @@ struct HomeView: View {
                                 
                                 StatCard(
                                     title: "Pace",
-                                    value: String(format: "%.1f", runManager.pace),
-                                    subtitle: "min/mi",
+                                    value: UnitConverter.formatPace(runManager.pace, unitSystem: preferencesManager.preferences.unitSystem),
+                                    subtitle: preferencesManager.preferences.unitSystem == .imperial ? "min/mi" : "min/km",
                                     color: .orange
                                 )
                             }
@@ -356,8 +356,8 @@ struct QuickStatsSection: View {
                 
                 StatCard(
                     title: "Average Pace",
-                    value: String(format: "%.1f", runManager.currentRun?.averagePace ?? 0),
-                    subtitle: "pace",
+                    value: UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: .imperial),
+                    subtitle: "min/mi",
                     color: .orange
                 )
                 
@@ -484,7 +484,7 @@ struct RunMapView: View {
                             Text("Pace")
                                 .font(.caption)
                                 .foregroundColor(.gray)
-                            Text(String(format: "%.1f", runManager.currentRun?.averagePace ?? 0))
+                            Text(UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: .imperial))
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(.orange)
