@@ -33,14 +33,45 @@ struct FriendsView: View {
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Tab selector with improved readability
-                    Picker("View", selection: $selectedTab) {
-                        Text("Friends").tag(0)
-                        Text("Leaderboards").tag(1)
+                    // Custom tab selector with better visibility
+                    HStack(spacing: 0) {
+                        // Friends Tab
+                        Button(action: { selectedTab = 0 }) {
+                            Text("Friends")
+                                .font(.system(size: 14, weight: selectedTab == 0 ? .semibold : .medium))
+                                .foregroundColor(selectedTab == 0 ? .white : .white.opacity(0.6))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(
+                                    selectedTab == 0 ? 
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.white.opacity(0.2)) :
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.clear)
+                                )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        // Leaderboards Tab
+                        Button(action: { selectedTab = 1 }) {
+                            Text("Leaderboards")
+                                .font(.system(size: 14, weight: selectedTab == 1 ? .semibold : .medium))
+                                .foregroundColor(selectedTab == 1 ? .white : .white.opacity(0.6))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(
+                                    selectedTab == 1 ? 
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.white.opacity(0.2)) :
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.clear)
+                                )
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .padding()
-                    .opacity(1.0) // Always fully visible
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+                    .padding(.bottom, 16)
                     
                     if selectedTab == 0 {
                         FriendsTabView(
@@ -466,15 +497,29 @@ struct LeaderboardsTabView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Timeframe selector with improved readability
-            Picker("Timeframe", selection: $selectedTimeframe) {
+            // Custom timeframe selector with better visibility
+            HStack(spacing: 8) {
                 ForEach(0..<timeframes.count, id: \.self) { index in
-                    Text(timeframes[index]).tag(index)
+                    Button(action: { selectedTimeframe = index }) {
+                        Text(timeframes[index])
+                            .font(.system(size: 12, weight: selectedTimeframe == index ? .semibold : .medium))
+                            .foregroundColor(selectedTimeframe == index ? .white : .white.opacity(0.6))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                selectedTimeframe == index ? 
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.white.opacity(0.2)) :
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.clear)
+                            )
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
             }
-            .pickerStyle(SegmentedPickerStyle())
-            .padding()
-            .opacity(1.0) // Always fully visible
+            .padding(.horizontal)
+            .padding(.top, 4)
+            .padding(.bottom, 12)
             
             // Leaderboard with fade-in
             ScrollView {

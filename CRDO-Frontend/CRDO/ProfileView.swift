@@ -203,16 +203,31 @@ struct ProfileHeaderSection: View {
                     .foregroundColor(.white)
                 
                 if isEditingBio {
-                    TextField("Enter your bio", text: $userBio, axis: .vertical)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .foregroundColor(.white)
-                        .onSubmit {
-                            UserDefaults.standard.set(userBio, forKey: "userBio")
-                            isEditingBio = false
+                    VStack(spacing: 8) {
+                        TextField("Enter your bio", text: $userBio, axis: .vertical)
+                            .textFieldStyle(CustomTextFieldStyle())
+                            .foregroundColor(.white)
+                            .onSubmit {
+                                UserDefaults.standard.set(userBio, forKey: "userBio")
+                                isEditingBio = false
+                            }
+                        
+                        HStack {
+                            Button("Cancel") {
+                                isEditingBio = false
+                            }
+                            .foregroundColor(.gray)
+                            
+                            Spacer()
+                            
+                            Button("Done") {
+                                UserDefaults.standard.set(userBio, forKey: "userBio")
+                                isEditingBio = false
+                            }
+                            .foregroundColor(.gold)
                         }
-                        .onTapGesture {
-                            // Keep editing mode active
-                        }
+                        .font(.caption)
+                    }
                 } else {
                     Text(userBio)
                         .font(.subheadline)
@@ -674,5 +689,20 @@ struct DetailedAchievementCard: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(achievement.category.color.opacity(achievement.isUnlocked ? 0.5 : 0.2), lineWidth: 1)
         )
+    }
+}
+
+// MARK: - Custom Text Field Style
+
+struct CustomTextFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .padding()
+            .background(Color.black.opacity(0.3))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+            )
     }
 } 
