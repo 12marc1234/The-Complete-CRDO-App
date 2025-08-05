@@ -129,6 +129,11 @@ class RunManager: NSObject, ObservableObject {
         updatedRun.route = route
         
         // Award gems for this run
+        print("🏃‍♂️ Finishing Run:")
+        print("   Final Distance: \(finalDistance) meters")
+        print("   Final Average Speed: \(averageSpeed) mph")
+        print("   Final Duration: \(finalDuration) seconds")
+        
         GemsManager.shared.awardGemsForRun(
             distance: finalDistance,
             averageSpeed: averageSpeed,
@@ -137,6 +142,7 @@ class RunManager: NSObject, ObservableObject {
         
         // Add to recent runs
         recentRuns.insert(updatedRun, at: 0)
+        saveRecentRuns() // Save the updated runs list
         
         // Update daily progress (persists even when logging out)
         GemsManager.shared.addDailyProgress(seconds: Int(finalDuration))

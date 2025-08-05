@@ -168,25 +168,40 @@ class GemsManager: ObservableObject {
     func calculateGemsForRun(distance: Double, averageSpeed: Double) -> Int {
         var gems = 10 // Base gems per run
         
+        print("🔍 Gem Calculation Details:")
+        print("   Input Distance: \(distance) meters")
+        print("   Input Average Speed: \(averageSpeed) mph")
+        
         // Speed bonus: +1 gem per mph over 6 mph (up to 10 mph)
         let speedMph = averageSpeed
         if speedMph > 6 {
             let speedBonus = min(speedMph - 6, 4) // Max 4 gems from speed (6-10 mph)
             gems += Int(speedBonus)
+            print("   Speed Bonus: +\(Int(speedBonus)) gems")
+        } else {
+            print("   Speed Bonus: +0 gems (speed \(speedMph) mph <= 6 mph)")
         }
         
         // Distance bonus: +1 gem per mile
         let distanceMiles = distance / 1609.34 // Convert meters to miles
-        gems += Int(distanceMiles)
+        let distanceBonus = Int(distanceMiles)
+        gems += distanceBonus
+        print("   Distance Bonus: +\(distanceBonus) gems (\(distanceMiles) miles)")
         
         // Streak bonus: +5 gems for consecutive days
         if let lastRun = lastRunDate {
             let calendar = Calendar.current
             if calendar.isDateInToday(lastRun) || calendar.isDateInYesterday(lastRun) {
                 gems += 5
+                print("   Streak Bonus: +5 gems")
+            } else {
+                print("   Streak Bonus: +0 gems (no consecutive days)")
             }
+        } else {
+            print("   Streak Bonus: +0 gems (no previous run)")
         }
         
+        print("   Total Gems: \(gems)")
         return gems
     }
     
@@ -198,6 +213,7 @@ class GemsManager: ObservableObject {
         print("   Average Speed: \(averageSpeed) mph")
         print("   Gems Earned: \(gemsEarned)")
         print("   Previous Total: \(totalGems)")
+        print("   Last Run Date: \(lastRunDate?.description ?? "None")")
         
         // Check if this is a new day
         let today = Date()
