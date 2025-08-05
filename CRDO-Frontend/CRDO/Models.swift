@@ -238,6 +238,7 @@ class GemsManager: ObservableObject {
         // Force UI update
         DispatchQueue.main.async {
             self.objectWillChange.send()
+            print("💎 Gems updated - Total: \(self.totalGems), Daily: \(self.gemsEarnedToday)")
         }
     }
     

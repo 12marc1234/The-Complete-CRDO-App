@@ -33,14 +33,14 @@ struct FriendsView: View {
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Tab selector with fade-in
+                    // Tab selector with improved readability
                     Picker("View", selection: $selectedTab) {
                         Text("Friends").tag(0)
                         Text("Leaderboards").tag(1)
                     }
                     .pickerStyle(SegmentedPickerStyle())
                     .padding()
-                    .opacity(max(0.3, 1.0 - scrollOffset / 100))
+                    .opacity(1.0) // Always fully visible
                     
                     if selectedTab == 0 {
                         FriendsTabView(
@@ -252,7 +252,7 @@ struct FriendsTabView: View {
                         }
                     }
                     .padding(.horizontal)
-                    .opacity(max(0.3, 1.0 - scrollOffset / 200))
+                    .opacity(max(0.5, 1.0 - scrollOffset / 300)) // Improved readability
                 }
                 
                 // Friends list with fade-in
@@ -276,7 +276,7 @@ struct FriendsTabView: View {
                     }
                     .padding(.horizontal)
                 }
-                .opacity(max(0.3, 1.0 - scrollOffset / 150))
+                .opacity(max(0.5, 1.0 - scrollOffset / 250)) // Improved readability
             }
         }
     }
@@ -466,7 +466,7 @@ struct LeaderboardsTabView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Timeframe selector with fade-in
+            // Timeframe selector with improved readability
             Picker("Timeframe", selection: $selectedTimeframe) {
                 ForEach(0..<timeframes.count, id: \.self) { index in
                     Text(timeframes[index]).tag(index)
@@ -474,7 +474,7 @@ struct LeaderboardsTabView: View {
             }
             .pickerStyle(SegmentedPickerStyle())
             .padding()
-            .opacity(max(0.3, 1.0 - scrollOffset / 100))
+            .opacity(1.0) // Always fully visible
             
             // Leaderboard with fade-in
             ScrollView {
@@ -485,7 +485,7 @@ struct LeaderboardsTabView: View {
                 }
                 .padding()
             }
-            .opacity(max(0.3, 1.0 - scrollOffset / 150))
+            .opacity(max(0.5, 1.0 - scrollOffset / 250)) // Improved readability
         }
     }
 }
@@ -575,130 +575,21 @@ struct FriendProfileView: View {
     let unitSystem: UnitSystem
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab = 0
+    @State private var achievements: [Achievement] = []
+    @State private var cityBuildings: [Building] = []
     
     var body: some View {
         NavigationView {
-            ZStack {
-                // Background
-                LinearGradient(
-                    gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-                
-                ScrollView {
-                    VStack(spacing: 30) {
-                        // Profile header
-                        VStack(spacing: 20) {
-                            // Avatar
-                            ZStack {
-                                Circle()
-                                    .fill(Color.gold.opacity(0.3))
-                                    .frame(width: 100, height: 100)
-                                
-                                Image(systemName: friend.avatar)
-                                    .font(.system(size: 50))
-                                    .foregroundColor(.gold)
-                            }
-                            
-                            // Friend info
-                            VStack(spacing: 8) {
-                                HStack {
-                                    Text(friend.name)
-                                        .font(.title2)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.white)
-                                    
-                                    Circle()
-                                        .fill(statusColor)
-                                        .frame(width: 12, height: 12)
-                                }
-                                
-                                Text(friend.bio)
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
-                            }
-                        }
-                        .padding(.top, 20)
-                        
-                        // Stats summary
-                        VStack(alignment: .leading, spacing: 15) {
-                            Text("Stats")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding(.horizontal)
-                            
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 15) {
-                                StatCard(
-                                    title: "Total Runs",
-                                    value: "\(friend.totalRuns)",
-                                    subtitle: "Lifetime",
-                                    color: .blue
-                                )
-                                
-                                StatCard(
-                                    title: "Total Distance",
-                                    value: UnitConverter.formatDistance(friend.totalDistance, unitSystem: unitSystem),
-                                    subtitle: "Lifetime",
-                                    color: .green
-                                )
-                                
-                                StatCard(
-                                    title: "Average Pace",
-                                    value: UnitConverter.formatPace(friend.averagePace, unitSystem: unitSystem),
-                                    subtitle: "Lifetime",
-                                    color: .orange
-                                )
-                                
-                                StatCard(
-                                    title: "Last Active",
-                                    value: friend.lastActive.timeIntervalSinceNow > -3600 ? "Now" : formatRelativeDate(friend.lastActive),
-                                    subtitle: "Status",
-                                    color: .purple
-                                )
-                            }
-                            .padding(.horizontal)
-                        }
-                        
-                        // Recent activity (mock data)
-                        VStack(alignment: .leading, spacing: 15) {
-                            Text("Recent Activity")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding(.horizontal)
-                            
-                            VStack(spacing: 10) {
-                                ForEach(1...3, id: \.self) { index in
-                                    RecentActivityCard(
-                                        title: "Morning Run",
-                                        distance: Double.random(in: 3000...8000),
-                                        duration: TimeInterval.random(in: 1200...3600),
-                                        date: Date().addingTimeInterval(-Double(index) * 86400),
-                                        unitSystem: unitSystem
-                                    )
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                        
-                        Spacer()
-                    }
-                }
-            }
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .foregroundColor(.gold)
-                }
+            FriendProfileContentView(
+                friend: friend,
+                unitSystem: unitSystem,
+                statusColor: statusColor,
+                achievements: achievements,
+                cityBuildings: cityBuildings,
+                dismiss: dismiss
+            )
+            .onAppear {
+                loadMockData()
             }
         }
     }
@@ -772,4 +663,328 @@ struct RecentActivityCard: View {
                 .stroke(Color.gray.opacity(0.2), lineWidth: 1)
         )
     }
-} 
+}
+
+// MARK: - Friend Profile Content View
+
+struct FriendProfileContentView: View {
+    let friend: MockFriend
+    let unitSystem: UnitSystem
+    let statusColor: Color
+    let achievements: [Achievement]
+    let cityBuildings: [Building]
+    let dismiss: DismissAction
+    
+    var body: some View {
+        ZStack {
+            // Background
+            LinearGradient(
+                gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 30) {
+                    // Profile header
+                    ProfileHeaderView(friend: friend, statusColor: statusColor)
+                        .padding(.top, 20)
+                    
+                    // Stats summary
+                    StatsSectionView(friend: friend, unitSystem: unitSystem)
+                    
+                    // Recent activity
+                    RecentActivitySectionView(unitSystem: unitSystem)
+                    
+                    // Achievements section
+                    AchievementsSectionView(achievements: achievements)
+                    
+                    // City section
+                    CitySectionView(cityBuildings: cityBuildings)
+                    
+                    Spacer()
+                }
+            }
+        }
+        .navigationTitle("Profile")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    dismiss()
+                }
+                .foregroundColor(.gold)
+            }
+        }
+    }
+}
+
+// MARK: - Stats Section View
+
+struct StatsSectionView: View {
+    let friend: MockFriend
+    let unitSystem: UnitSystem
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Text("Stats")
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 15) {
+                StatCard(
+                    title: "Total Runs",
+                    value: "\(friend.totalRuns)",
+                    subtitle: "Lifetime",
+                    color: .blue
+                )
+                
+                StatCard(
+                    title: "Total Distance",
+                    value: UnitConverter.formatDistance(friend.totalDistance, unitSystem: unitSystem),
+                    subtitle: "Lifetime",
+                    color: .green
+                )
+                
+                StatCard(
+                    title: "Average Pace",
+                    value: UnitConverter.formatPace(friend.averagePace, unitSystem: unitSystem),
+                    subtitle: "Lifetime",
+                    color: .orange
+                )
+                
+                StatCard(
+                    title: "Last Active",
+                    value: friend.lastActive.timeIntervalSinceNow > -3600 ? "Now" : formatRelativeDate(friend.lastActive),
+                    subtitle: "Status",
+                    color: .purple
+                )
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+// MARK: - Recent Activity Section View
+
+struct RecentActivitySectionView: View {
+    let unitSystem: UnitSystem
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Text("Recent Activity")
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal)
+            
+            VStack(spacing: 10) {
+                ForEach(1...3, id: \.self) { index in
+                    RecentActivityCard(
+                        title: "Morning Run",
+                        distance: Double.random(in: 3000...8000),
+                        duration: TimeInterval.random(in: 1200...3600),
+                        date: Date().addingTimeInterval(-Double(index) * 86400),
+                        unitSystem: unitSystem
+                    )
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+// MARK: - Achievements Section View
+
+struct AchievementsSectionView: View {
+    let achievements: [Achievement]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack {
+                Text("Achievements")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Button("View All") {
+                    // TODO: Navigate to full achievements view
+                }
+                .foregroundColor(.gold)
+            }
+            .padding(.horizontal)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 15) {
+                ForEach(achievements) { achievement in
+                    AchievementCard(achievement: achievement)
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+// MARK: - City Section View
+
+struct CitySectionView: View {
+    let cityBuildings: [Building]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack {
+                Text("City")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Button("View Full City") {
+                    // TODO: Navigate to full city view
+                }
+                .foregroundColor(.gold)
+            }
+            .padding(.horizontal)
+            
+            // Mini city grid view
+            ZStack {
+                // Background grid
+                VStack(spacing: 8) {
+                    ForEach(0..<6, id: \.self) { row in
+                        HStack(spacing: 8) {
+                            ForEach(0..<6, id: \.self) { col in
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.2))
+                                    .frame(width: 40, height: 40)
+                                    .cornerRadius(4)
+                            }
+                        }
+                    }
+                }
+                
+                // Buildings overlay
+                ForEach(cityBuildings) { building in
+                    let gridX = Int(building.position.x / 50) % 6
+                    let gridY = Int(building.position.y / 50) % 6
+                    
+                    Image(building.type.realisticIcon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 35, height: 35)
+                        .offset(x: CGFloat(gridX * 48 - 120), y: CGFloat(gridY * 48 - 120))
+                }
+            }
+            .frame(height: 300)
+            .padding(.horizontal)
+        }
+    }
+}
+
+// MARK: - Profile Header View
+
+struct ProfileHeaderView: View {
+    let friend: MockFriend
+    let statusColor: Color
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            // Avatar
+            ZStack {
+                Circle()
+                    .fill(Color.gold.opacity(0.3))
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: friend.avatar)
+                    .font(.system(size: 50))
+                    .foregroundColor(.gold)
+            }
+            
+            // Friend info
+            VStack(spacing: 8) {
+                HStack {
+                    Text(friend.name)
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                    
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 12, height: 12)
+                }
+                
+                Text(friend.bio)
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+        }
+    }
+}
+
+// MARK: - Friend Profile Helper Methods
+
+extension FriendProfileView {
+    private func loadMockData() {
+        // Load mock achievements
+        achievements = [
+            Achievement(
+                title: "First Run",
+                description: "Complete your first run",
+                icon: "figure.run",
+                category: .distance,
+                isUnlocked: true,
+                unlockedDate: Date().addingTimeInterval(-86400 * 7),
+                progress: 1.0,
+                target: 1,
+                current: 1
+            ),
+            Achievement(
+                title: "5K Runner",
+                description: "Complete a 5K run",
+                icon: "figure.run",
+                category: .distance,
+                isUnlocked: true,
+                unlockedDate: Date().addingTimeInterval(-86400 * 5),
+                progress: 1.0,
+                target: 1,
+                current: 1
+            ),
+            Achievement(
+                title: "Speed Demon",
+                description: "Run at 8+ mph for 1 mile",
+                icon: "speedometer",
+                category: .speed,
+                isUnlocked: true,
+                unlockedDate: Date().addingTimeInterval(-86400 * 3),
+                progress: 1.0,
+                target: 1,
+                current: 1
+            ),
+            Achievement(
+                title: "Consistency",
+                description: "Run 3 days in a row",
+                icon: "calendar",
+                category: .consistency,
+                isUnlocked: false,
+                unlockedDate: nil,
+                progress: 0.67,
+                target: 3,
+                current: 2
+            )
+        ]
+        
+        // Load mock city buildings
+        cityBuildings = [
+            Building(type: .house, position: CGPoint(x: 100, y: 100)),
+            Building(type: .park, position: CGPoint(x: 200, y: 150)),
+            Building(type: .office, position: CGPoint(x: 150, y: 200)),
+            Building(type: .mall, position: CGPoint(x: 250, y: 100))
+        ]
+    }
+}
+
+ 
