@@ -2,7 +2,7 @@
 //  ProfileView.swift
 //  CRDO
 //
-//  Created by Ethan Yip on 7/25/25.
+//  Created by Marcus Lee on 8/4/25.
 //  Profile view with settings and user info
 //
 

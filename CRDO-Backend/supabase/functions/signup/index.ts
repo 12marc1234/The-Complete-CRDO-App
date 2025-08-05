@@ -10,6 +10,8 @@ const corsHeaders = {
 interface SignupRequest {
   email: string;
   password: string;
+  firstName: string;
+  lastName: string;
 }
 
 serve(async (req) => {
@@ -24,12 +26,12 @@ serve(async (req) => {
 
     // Parse request body
     const body: SignupRequest = await req.json();
-    const { email, password } = body;
+    const { email, password, firstName, lastName } = body;
 
     // Validate input
-    if (!email || !password) {
+    if (!email || !password || !firstName || !lastName) {
       return new Response(
-        JSON.stringify({ error: "Email and password are required" }),
+        JSON.stringify({ error: "Email, password, first name, and last name are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -45,6 +47,13 @@ serve(async (req) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          full_name: `${firstName} ${lastName}`
+        }
+      }
     });
 
     if (error) {
@@ -67,6 +76,9 @@ serve(async (req) => {
         user: {
           id: data.user.id,
           email: data.user.email,
+          firstName: firstName,
+          lastName: lastName,
+          fullName: `${firstName} ${lastName}`
         },
         session: data.session,
       }),

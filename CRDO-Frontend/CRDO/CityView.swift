@@ -2,7 +2,7 @@
 //  CityView.swift
 //  CRDO
 //
-//  City view with building purchase and placement system
+//  Created by Marcus Lee on 8/4/25.
 //
 
 import SwiftUI
