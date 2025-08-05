@@ -10,16 +10,9 @@ import CoreLocation
 
 @main
 struct CRDOApp: App {
-    @StateObject private var runManager = RunManager.shared
-    @StateObject private var permissionManager = PermissionManager.shared
-    
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .onAppear {
-                    // Request location permissions when app launches
-                    permissionManager.requestLocationPermission()
-                }
         }
     }
 }

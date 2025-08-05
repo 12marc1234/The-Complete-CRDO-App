@@ -12,7 +12,7 @@ import Combine
 // MARK: - API Endpoints
 
 enum APIEndpoint {
-    case signup(email: String, password: String, firstName: String, lastName: String)
+    case signup(email: String, password: String)
     case login(email: String, password: String)
     case logout
     case startRun
@@ -65,8 +65,8 @@ enum APIEndpoint {
     
     var body: Data? {
         switch self {
-        case .signup(let email, let password, let firstName, let lastName):
-            let signupData = ["email": email, "password": password, "firstName": firstName, "lastName": lastName]
+        case .signup(let email, let password):
+            let signupData = ["email": email, "password": password]
             return try? JSONSerialization.data(withJSONObject: signupData)
             
         case .login(let email, let password):
@@ -128,8 +128,8 @@ class NetworkService: ObservableObject {
     
     // MARK: - Authentication
     
-    func signup(email: String, password: String, firstName: String, lastName: String) -> AnyPublisher<AuthResponse, Error> {
-        let endpoint = APIEndpoint.signup(email: email, password: password, firstName: firstName, lastName: lastName)
+    func signup(email: String, password: String) -> AnyPublisher<AuthResponse, Error> {
+        let endpoint = APIEndpoint.signup(email: email, password: password)
         return makeRequest(endpoint: endpoint)
             .decode(type: AuthResponse.self, decoder: JSONDecoder())
             .eraseToAnyPublisher()
@@ -232,18 +232,9 @@ class NetworkService: ObservableObject {
         request.httpMethod = endpoint.method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        // Add authentication header
-        // For signup/login, use anon key. For other requests, use stored token
-        switch endpoint {
-        case .signup, .login:
-            // Use anon key for authentication endpoints
-            let anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
-            request.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
-        default:
-            // Use stored token for other endpoints
-            if let token = UserDefaults.standard.string(forKey: "authToken") {
-                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            }
+        // Add authentication token if available
+        if let token = UserDefaults.standard.string(forKey: "authToken") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
         if let body = endpoint.body {
@@ -301,80 +292,20 @@ class NetworkService: ObservableObject {
 
 // MARK: - Response Models
 
-struct User: Codable {
-    let id: String
-    let email: String
-    let firstName: String?
-    let lastName: String?
-    let fullName: String?
-}
-
 struct AuthResponse: Codable {
     let message: String
     let user: User?
     let session: Session?
 }
 
+struct User: Codable {
+    let id: String
+    let email: String
+}
+
 struct Session: Codable {
-    let access_token: String?
-    let refresh_token: String?
-    let token_type: String?
-    let expires_in: Int?
-    let expires_at: Int?
-    let user: SessionUser?
-}
-
-struct SessionUser: Codable {
-    let id: String?
-    let aud: String?
-    let role: String?
-    let email: String?
-    let email_confirmed_at: String?
-    let phone: String?
-    let last_sign_in_at: String?
-    let app_metadata: AppMetadata?
-    let user_metadata: UserMetadata?
-    let identities: [Identity]?
-    let created_at: String?
-    let updated_at: String?
-    let is_anonymous: Bool?
-}
-
-struct Identity: Codable {
-    let identity_id: String?
-    let id: String?
-    let user_id: String?
-    let identity_data: IdentityData?
-    let provider: String?
-    let last_sign_in_at: String?
-    let created_at: String?
-    let updated_at: String?
-    let email: String?
-}
-
-struct IdentityData: Codable {
-    let email: String?
-    let email_verified: Bool?
-    let first_name: String?
-    let full_name: String?
-    let last_name: String?
-    let phone_verified: Bool?
-    let sub: String?
-}
-
-struct AppMetadata: Codable {
-    let provider: String?
-    let providers: [String]?
-}
-
-struct UserMetadata: Codable {
-    let email: String?
-    let email_verified: Bool?
-    let first_name: String?
-    let full_name: String?
-    let last_name: String?
-    let phone_verified: Bool?
-    let sub: String?
+    let access_token: String
+    let refresh_token: String
 }
 
 struct LogoutResponse: Codable {

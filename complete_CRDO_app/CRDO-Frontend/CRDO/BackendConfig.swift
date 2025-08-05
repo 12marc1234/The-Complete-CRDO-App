@@ -12,8 +12,8 @@ import Foundation
 
 struct BackendConfig {
     // Development (Supabase Local)
-    static let developmentBaseURL = "http://10.45.120.218:54321/functions/v1"
-    static let developmentWebSocketURL = "ws://10.45.120.218:54321"
+    static let developmentBaseURL = "http://127.0.0.1:54321/functions/v1"
+    static let developmentWebSocketURL = "ws://127.0.0.1:54321"
     
     // Staging (Supabase)
     static let stagingBaseURL = "https://your-project-ref.supabase.co/functions/v1"

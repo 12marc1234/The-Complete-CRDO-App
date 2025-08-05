@@ -42,19 +42,11 @@ class DataManager: ObservableObject {
     
     // MARK: - Authentication
     
-    func signup(email: String, password: String, firstName: String, lastName: String) -> AnyPublisher<Bool, Error> {
-        return networkService.signup(email: email, password: password, firstName: firstName, lastName: lastName)
+    func signup(email: String, password: String) -> AnyPublisher<Bool, Error> {
+        return networkService.signup(email: email, password: password)
             .handleEvents(receiveOutput: { [weak self] response in
                 if let session = response.session {
-                    self?.saveAuthData(token: session.access_token ?? "", userId: response.user?.id ?? "")
-                    
-                    // Save user data
-                    if let user = response.user {
-                        self?.currentUser = user
-                        if let userData = try? JSONEncoder().encode(user) {
-                            UserDefaults.standard.set(userData, forKey: "userData")
-                        }
-                    }
+                    self?.saveAuthData(token: session.access_token, userId: response.user?.id ?? "")
                 }
             })
             .map { _ in true }
@@ -65,15 +57,7 @@ class DataManager: ObservableObject {
         return networkService.login(email: email, password: password)
             .handleEvents(receiveOutput: { [weak self] response in
                 if let session = response.session {
-                    self?.saveAuthData(token: session.access_token ?? "", userId: response.user?.id ?? "")
-                    
-                    // Save user data
-                    if let user = response.user {
-                        self?.currentUser = user
-                        if let userData = try? JSONEncoder().encode(user) {
-                            UserDefaults.standard.set(userData, forKey: "userData")
-                        }
-                    }
+                    self?.saveAuthData(token: session.access_token, userId: response.user?.id ?? "")
                 }
             })
             .map { _ in true }
@@ -185,7 +169,7 @@ class DataManager: ObservableObject {
                         self?.syncError = error.localizedDescription
                     }
                 },
-                receiveValue: { _ in
+                receiveValue: { [weak self] response in
                     // Update friends data
                     // self?.friends = response.friends ?? []
                 }
@@ -229,23 +213,33 @@ class DataManager: ObservableObject {
     
     // MARK: - Pending Data Management
     
-    private func storePendingRun(_ runData: Any) {
-        // TODO: Implement pending run storage
+    private func storePendingRun(_ runData: RunSession) {
+        var pendingRuns = getPendingRuns()
+        pendingRuns.append(runData)
+        
+        if let data = try? JSONEncoder().encode(pendingRuns) {
+            UserDefaults.standard.set(data, forKey: pendingRunsKey)
+        }
     }
     
-    private func removePendingRun(_ runData: Any) {
-        // TODO: Implement pending run removal
+    private func removePendingRun(_ runData: RunSession) {
+        var pendingRuns = getPendingRuns()
+        pendingRuns.removeAll { $0.id == runData.id }
+        
+        if let data = try? JSONEncoder().encode(pendingRuns) {
+            UserDefaults.standard.set(data, forKey: pendingRunsKey)
+        }
     }
     
-    private func getPendingRuns() -> [Any] {
-        // TODO: Implement pending runs retrieval
-        return []
+    private func getPendingRuns() -> [RunSession] {
+        guard let data = UserDefaults.standard.data(forKey: pendingRunsKey),
+              let runs = try? JSONDecoder().decode([RunSession].self, from: data) else {
+            return []
+        }
+        return runs
     }
     
     func uploadPendingRuns() {
-        // TODO: Implement pending runs upload when proper types are available
-        // For now, this is commented out due to type issues
-        /*
         let pendingRuns = getPendingRuns()
         
         for run in pendingRuns {
@@ -274,7 +268,6 @@ class DataManager: ObservableObject {
             )
             .store(in: &cancellables)
         }
-        */
     }
     
     // MARK: - Auto Sync
