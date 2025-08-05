@@ -358,49 +358,12 @@ struct BuildingView: View {
     let building: Building
     
     var body: some View {
-        VStack(spacing: 2) {
-            ZStack {
-                // 3D building base
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                building.type.color.opacity(0.8),
-                                building.type.color.opacity(0.6)
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: building.type.size.width, height: building.type.size.height)
-                    .shadow(color: .black.opacity(0.3), radius: 3, x: 2, y: 2)
-                
-                // Realistic building icon
-                Image(building.type.realisticIcon)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: building.type.size.width * 0.6, height: building.type.size.height * 0.6)
-                    .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
-            }
-            
-            // Building name with better styling
-            Text(building.type.rawValue)
-                .font(.caption2)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
-                .lineLimit(1)
-                .shadow(color: .black.opacity(0.8), radius: 1, x: 0, y: 1)
-        }
-        .frame(width: building.type.size.width, height: building.type.size.height + 20)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.black.opacity(0.7))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(building.type.color.opacity(0.8), lineWidth: 2)
-                        .shadow(color: building.type.color.opacity(0.3), radius: 2, x: 0, y: 0)
-                )
-        )
+        // Just the building image, clean and simple
+        Image(building.type.realisticIcon)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: building.type.size.width * 0.8, height: building.type.size.height * 0.8)
+            .shadow(color: .black.opacity(0.3), radius: 2, x: 1, y: 1)
     }
 }
 
