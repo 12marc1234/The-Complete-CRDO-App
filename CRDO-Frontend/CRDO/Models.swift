@@ -285,6 +285,11 @@ class GemsManager: ObservableObject {
         // Force UI update immediately
         self.objectWillChange.send()
         print("💎 Gems updated - Total: \(self.totalGems), Daily: \(self.gemsEarnedToday)")
+        
+        // Also notify MainAppView to refresh
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+        }
     }
     
     func spendGems(_ amount: Int) -> Bool {

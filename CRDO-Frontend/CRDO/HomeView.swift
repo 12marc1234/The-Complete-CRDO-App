@@ -233,6 +233,7 @@ struct StreakSection: View {
     @State private var pulseAnimation = false
     @State private var showingCelebration = false
     @State private var celebrationScale: CGFloat = 1.0
+    @State private var goalCompletedToday = false
     
     var body: some View {
         VStack(spacing: 20) {
@@ -301,6 +302,12 @@ struct StreakSection: View {
                 }
                 .onChange(of: gemsManager.dailyProgressPercentage) { _ in
                     checkGoalCompletion()
+                }
+                .onChange(of: gemsManager.dailySecondsCompleted) { _ in
+                    // Reset goal completion flag when daily progress changes (new day)
+                    if gemsManager.dailySecondsCompleted == 0 {
+                        goalCompletedToday = false
+                    }
                 }
                 .scaleEffect(celebrationScale)
                 .overlay(
@@ -413,7 +420,8 @@ struct StreakSection: View {
     }
     
     private func checkGoalCompletion() {
-        if gemsManager.dailyProgressPercentage >= 1.0 && !showingCelebration {
+        if gemsManager.dailyProgressPercentage >= 1.0 && !showingCelebration && !goalCompletedToday {
+            goalCompletedToday = true
             showingCelebration = true
             celebrationScale = 1.2
             

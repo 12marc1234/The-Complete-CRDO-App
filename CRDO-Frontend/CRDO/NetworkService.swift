@@ -183,6 +183,9 @@ class NetworkService: ObservableObject {
     func deleteAccount(password: String) -> AnyPublisher<DeleteAccountResponse, Error> {
         let endpoint = APIEndpoint.deleteAccount(password: password)
         return makeRequest(endpoint: endpoint)
+            .handleEvents(receiveOutput: { data in
+                print("🔍 Delete account raw response: \(String(data: data, encoding: .utf8) ?? "nil")")
+            })
             .decode(type: DeleteAccountResponse.self, decoder: JSONDecoder())
             .eraseToAnyPublisher()
     }

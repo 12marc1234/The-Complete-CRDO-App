@@ -97,6 +97,7 @@ struct MainAppView: View {
                 .onAppear {
                     // Refresh gems data
                     gemsManager.refreshGemsData()
+                    print("💎 MainAppView - Total gems: \(gemsManager.totalGems)")
                 }
             }
         }

@@ -414,10 +414,12 @@ struct ActionsSection: View {
                 receiveCompletion: { completion in
                     isDeletingAccount = false
                     if case .failure(let error) = completion {
+                        print("❌ Delete account error: \(error)")
                         deleteError = error.localizedDescription
                     }
                 },
                 receiveValue: { response in
+                    print("✅ Delete account success: \(response)")
                     // Account deleted successfully
                     showingDeleteConfirmation = false
                     deletePassword = ""
@@ -531,6 +533,8 @@ struct DeleteAccountConfirmationView: View {
                         SecureField("Password", text: $password)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .foregroundColor(.black)
+                            .background(Color.white)
+                            .cornerRadius(8)
                     }
                     .padding(.horizontal)
                     
