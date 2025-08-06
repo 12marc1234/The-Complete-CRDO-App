@@ -240,7 +240,89 @@ class RunManager: NSObject, ObservableObject {
         if let data = UserDefaults.standard.data(forKey: key),
            let runs = try? JSONDecoder().decode([RunSession].self, from: data) {
             recentRuns = runs
+        } else {
+            // Create some test runs with GPS coordinates for demonstration
+            createTestRuns()
         }
+    }
+    
+    private func createTestRuns() {
+        // Create test runs with GPS coordinates around San Francisco
+        let testRuns: [RunSession] = [
+            createTestRun(
+                distance: 5000, // 5km
+                duration: 1800, // 30 minutes
+                averagePace: 360, // 6 min/km
+                coordinates: [
+                    CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194), // Golden Gate Park
+                    CLLocationCoordinate2D(latitude: 37.7750, longitude: -122.4195),
+                    CLLocationCoordinate2D(latitude: 37.7751, longitude: -122.4196),
+                    CLLocationCoordinate2D(latitude: 37.7752, longitude: -122.4197),
+                    CLLocationCoordinate2D(latitude: 37.7753, longitude: -122.4198),
+                    CLLocationCoordinate2D(latitude: 37.7754, longitude: -122.4199),
+                    CLLocationCoordinate2D(latitude: 37.7755, longitude: -122.4200),
+                    CLLocationCoordinate2D(latitude: 37.7756, longitude: -122.4201),
+                    CLLocationCoordinate2D(latitude: 37.7757, longitude: -122.4202),
+                    CLLocationCoordinate2D(latitude: 37.7758, longitude: -122.4203)
+                ],
+                startTime: Date().addingTimeInterval(-86400) // Yesterday
+            ),
+            createTestRun(
+                distance: 3000, // 3km
+                duration: 1200, // 20 minutes
+                averagePace: 400, // 6.67 min/km
+                coordinates: [
+                    CLLocationCoordinate2D(latitude: 37.7849, longitude: -122.4094), // Fisherman's Wharf
+                    CLLocationCoordinate2D(latitude: 37.7850, longitude: -122.4095),
+                    CLLocationCoordinate2D(latitude: 37.7851, longitude: -122.4096),
+                    CLLocationCoordinate2D(latitude: 37.7852, longitude: -122.4097),
+                    CLLocationCoordinate2D(latitude: 37.7853, longitude: -122.4098),
+                    CLLocationCoordinate2D(latitude: 37.7854, longitude: -122.4099),
+                    CLLocationCoordinate2D(latitude: 37.7855, longitude: -122.4100),
+                    CLLocationCoordinate2D(latitude: 37.7856, longitude: -122.4101)
+                ],
+                startTime: Date().addingTimeInterval(-172800) // 2 days ago
+            ),
+            createTestRun(
+                distance: 8000, // 8km
+                duration: 2400, // 40 minutes
+                averagePace: 300, // 5 min/km
+                coordinates: [
+                    CLLocationCoordinate2D(latitude: 37.7649, longitude: -122.4294), // Mission District
+                    CLLocationCoordinate2D(latitude: 37.7650, longitude: -122.4295),
+                    CLLocationCoordinate2D(latitude: 37.7651, longitude: -122.4296),
+                    CLLocationCoordinate2D(latitude: 37.7652, longitude: -122.4297),
+                    CLLocationCoordinate2D(latitude: 37.7653, longitude: -122.4298),
+                    CLLocationCoordinate2D(latitude: 37.7654, longitude: -122.4299),
+                    CLLocationCoordinate2D(latitude: 37.7655, longitude: -122.4300),
+                    CLLocationCoordinate2D(latitude: 37.7656, longitude: -122.4301),
+                    CLLocationCoordinate2D(latitude: 37.7657, longitude: -122.4302),
+                    CLLocationCoordinate2D(latitude: 37.7658, longitude: -122.4303),
+                    CLLocationCoordinate2D(latitude: 37.7659, longitude: -122.4304),
+                    CLLocationCoordinate2D(latitude: 37.7660, longitude: -122.4305),
+                    CLLocationCoordinate2D(latitude: 37.7661, longitude: -122.4306),
+                    CLLocationCoordinate2D(latitude: 37.7662, longitude: -122.4307),
+                    CLLocationCoordinate2D(latitude: 37.7663, longitude: -122.4308)
+                ],
+                startTime: Date().addingTimeInterval(-259200) // 3 days ago
+            )
+        ]
+        
+        recentRuns = testRuns
+        saveRecentRuns()
+    }
+    
+    private func createTestRun(distance: Double, duration: TimeInterval, averagePace: Double, coordinates: [CLLocationCoordinate2D], startTime: Date) -> RunSession {
+        var run = RunSession()
+        run.startTime = startTime
+        run.endTime = startTime.addingTimeInterval(duration)
+        run.distance = distance
+        run.duration = duration
+        run.averagePace = averagePace
+        run.maxPace = averagePace * 0.8 // Slightly faster than average
+        run.route = coordinates
+        run.isActive = false
+        return run
     }
     
     func saveRecentRuns() {
