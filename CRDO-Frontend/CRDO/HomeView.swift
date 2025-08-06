@@ -370,6 +370,7 @@ struct QuickStatsSection: View {
 
 struct RunMapView: View {
     @ObservedObject var runManager: RunManager
+    @ObservedObject var preferencesManager = UserPreferencesManager.shared
     @Environment(\.dismiss) private var dismiss
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
@@ -425,7 +426,7 @@ struct RunMapView: View {
                                 Text("Current Speed")
                                     .font(.caption)
                                     .foregroundColor(.gray)
-                                Text(String(format: "%.1f mph", runManager.currentSpeed))
+                                Text(UnitConverter.formatSpeed(runManager.currentSpeed, unitSystem: preferencesManager.preferences.unitSystem))
                                     .font(.title2)
                                     .fontWeight(.bold)
                                     .foregroundColor(.gold)
@@ -437,7 +438,7 @@ struct RunMapView: View {
                                 Text("Average Speed")
                                     .font(.caption)
                                     .foregroundColor(.gray)
-                                Text(String(format: "%.1f mph", runManager.averageSpeed))
+                                Text(UnitConverter.formatSpeed(runManager.averageSpeed, unitSystem: preferencesManager.preferences.unitSystem))
                                     .font(.title2)
                                     .fontWeight(.bold)
                                     .foregroundColor(.white)
@@ -454,7 +455,7 @@ struct RunMapView: View {
                             Text("Distance")
                                 .font(.caption)
                                 .foregroundColor(.gray)
-                            Text(UnitConverter.formatDistance(runManager.currentRun?.distance ?? 0, unitSystem: .imperial))
+                            Text(UnitConverter.formatDistance(runManager.currentRun?.distance ?? 0, unitSystem: preferencesManager.preferences.unitSystem))
                                 .font(.headline)
                                 .foregroundColor(.white)
                         }
@@ -472,7 +473,7 @@ struct RunMapView: View {
                             Text("Pace")
                                 .font(.caption)
                                 .foregroundColor(.gray)
-                            Text(UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: .imperial))
+                            Text(UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: preferencesManager.preferences.unitSystem))
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(.orange)

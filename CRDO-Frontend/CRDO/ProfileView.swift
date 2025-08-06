@@ -141,7 +141,7 @@ struct ProfileHeaderSection: View {
             
             // User info
             VStack(spacing: 8) {
-                Text(authTracker.currentUser?.fullName ?? authTracker.currentUser?.firstName != nil ? "\(authTracker.currentUser?.firstName ?? "") \(authTracker.currentUser?.lastName ?? "")" : "User")
+                Text(authTracker.currentUser?.fullName ?? (authTracker.currentUser?.firstName != nil ? "\(authTracker.currentUser?.firstName ?? "") \(authTracker.currentUser?.lastName ?? "")" : "User"))
                     .font(.title2)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
@@ -373,23 +373,13 @@ struct SettingsSection: View {
                     value: preferencesManager.preferences.unitSystem == .imperial ? "Imperial" : "Metric"
                 ) {
                     preferencesManager.preferences.unitSystem = preferencesManager.preferences.unitSystem == .imperial ? .metric : .imperial
+                    // Force UI update
+                    DispatchQueue.main.async {
+                        preferencesManager.objectWillChange.send()
+                    }
                 }
                 
-                SettingsRow(
-                    icon: "speedometer",
-                    title: "Show Speed",
-                    value: preferencesManager.preferences.showSpeed ? "On" : "Off"
-                ) {
-                    preferencesManager.preferences.showSpeed.toggle()
-                }
-                
-                SettingsRow(
-                    icon: "pause.circle",
-                    title: "Auto Pause",
-                    value: preferencesManager.preferences.autoPause ? "On" : "Off"
-                ) {
-                    preferencesManager.preferences.autoPause.toggle()
-                }
+
             }
             .background(Color.black.opacity(0.3))
             .cornerRadius(12)

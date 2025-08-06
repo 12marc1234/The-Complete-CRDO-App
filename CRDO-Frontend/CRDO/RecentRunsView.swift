@@ -17,12 +17,8 @@ struct RecentRunsView: View {
         NavigationView {
             ZStack {
                 // Background
-                LinearGradient(
-                    gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                LinearGradient.backgroundGradient
+                    .ignoresSafeArea()
                 
                 if runManager.recentRuns.isEmpty {
                     VStack(spacing: 20) {
@@ -67,6 +63,8 @@ struct RecentRunsView: View {
         }
         .onAppear {
             // UserPreferencesManager automatically loads preferences on init
+            // Force refresh of preferences
+            preferencesManager.objectWillChange.send()
         }
     }
 }

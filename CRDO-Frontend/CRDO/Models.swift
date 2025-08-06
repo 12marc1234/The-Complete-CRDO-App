@@ -88,6 +88,15 @@ class GemsManager: ObservableObject {
             dailyMinutesGoal = 15
         }
         
+        // Sync with UserPreferences if available
+        let preferencesManager = UserPreferencesManager.shared
+        if preferencesManager.preferences.totalGems > 0 {
+            totalGems = preferencesManager.preferences.totalGems
+        }
+        if preferencesManager.preferences.gemsEarnedToday > 0 {
+            gemsEarnedToday = preferencesManager.preferences.gemsEarnedToday
+        }
+        
         print("🔮 GemsManager - Loaded Data for user \(userId):")
         print("   Total Gems: \(totalGems)")
         print("   Gems Earned Today: \(gemsEarnedToday)")
@@ -235,11 +244,9 @@ class GemsManager: ObservableObject {
         
         saveGemsData()
         
-        // Force UI update
-        DispatchQueue.main.async {
-            self.objectWillChange.send()
-            print("💎 Gems updated - Total: \(self.totalGems), Daily: \(self.gemsEarnedToday)")
-        }
+        // Force UI update immediately
+        self.objectWillChange.send()
+        print("💎 Gems updated - Total: \(self.totalGems), Daily: \(self.gemsEarnedToday)")
     }
     
     func spendGems(_ amount: Int) -> Bool {
@@ -253,6 +260,15 @@ class GemsManager: ObservableObject {
     
     func refreshGemsData() {
         loadGemsData()
+        // Sync with UserPreferences
+        let preferencesManager = UserPreferencesManager.shared
+        preferencesManager.preferences.totalGems = totalGems
+        preferencesManager.preferences.gemsEarnedToday = gemsEarnedToday
+        // Force UI update
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+            preferencesManager.objectWillChange.send()
+        }
     }
 }
 
@@ -518,9 +534,9 @@ struct UnitConverter {
         case .imperial:
             let miles = metersToMiles(meters)
             if miles < 0.1 {
-                // Show feet for distances less than 0.1 miles
+                // Show feet for distances less than 0.1 miles, rounded to nearest foot
                 let feet = meters * 3.28084 // Convert meters to feet
-                return String(format: "%.0f ft", feet)
+                return String(format: "%.0f ft", round(feet))
             } else {
                 // Show miles rounded to nearest hundredth
                 let roundedMiles = round(miles * 100) / 100
@@ -528,7 +544,18 @@ struct UnitConverter {
             }
         case .metric:
             let kilometers = metersToKilometers(meters)
-            return String(format: "%.2f km", kilometers)
+            if kilometers < 1.0 {
+                // Show meters rounded to nearest meter for distances less than 1 km
+                return String(format: "%.0f m", round(meters))
+            } else if kilometers < 10.0 {
+                // Show kilometers rounded to nearest tenth for distances between 1-10 km
+                let roundedKm = round(kilometers * 10) / 10
+                return String(format: "%.1f km", roundedKm)
+            } else {
+                // Show kilometers rounded to nearest km for distances 10+ km
+                let roundedKm = round(kilometers)
+                return String(format: "%.0f km", roundedKm)
+            }
         }
     }
     
@@ -540,10 +567,13 @@ struct UnitConverter {
         
         switch unitSystem {
         case .metric:
-            let minutes = Int(pace)
-            let seconds = Int((pace - Double(minutes)) * 60)
+            // Convert pace from min/mile to min/km
+            let pacePerKm = pace * 0.621371 // Convert min/mile to min/km
+            let minutes = Int(pacePerKm)
+            let seconds = Int((pacePerKm - Double(minutes)) * 60)
             return String(format: "%d:%02d", minutes, seconds)
         case .imperial:
+            // Keep pace as min/mile
             let minutes = Int(pace)
             let seconds = Int((pace - Double(minutes)) * 60)
             return String(format: "%d:%02d", minutes, seconds)

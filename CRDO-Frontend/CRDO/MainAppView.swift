@@ -24,6 +24,34 @@ struct MainAppView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
+                // Gems display in top right corner
+                HStack {
+                    Spacer()
+                    
+                    VStack(spacing: 4) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "diamond.fill")
+                                .foregroundColor(.yellow)
+                                .font(.title3)
+                            
+                            Text("\(gemsManager.totalGems)")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.yellow)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    .padding(.trailing, 20)
+                    .padding(.top, 10)
+                }
+                
                 // Content
                 TabView(selection: $selectedTab) {
                     // Home Tab
@@ -75,7 +103,7 @@ struct MainAppView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             // Show APP UPDATED indicator when app loads (reduced delay)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showAppUpdated = true
                 }
