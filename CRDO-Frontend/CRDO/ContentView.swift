@@ -20,7 +20,7 @@ struct ContentView: View {
             )
             .ignoresSafeArea()
             
-            if !authTracker.isAuthenticated {
+            if !authTracker.isAuthenticated && !authTracker.isGuestMode {
                 AuthenticationView(authTracker: authTracker)
                     .transition(.opacity.combined(with: .scale))
             } else {

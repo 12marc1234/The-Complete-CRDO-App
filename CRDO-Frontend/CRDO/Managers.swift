@@ -281,9 +281,10 @@ class RunManager: NSObject, ObservableObject {
         let distance = location.distance(from: lastLocation)
         let timeInterval = location.timestamp.timeIntervalSince(lastLocation.timestamp)
         
-        // More responsive route tracking: add points more frequently
-        // Only add point if it's at least 5 meters away and 2 seconds have passed
-        return distance >= 5 && timeInterval >= 2
+        // Much more responsive route tracking to capture the actual path
+        // Add points more frequently to show the real route with all turns and curves
+        // Only require 2 meters distance and 1 second time interval
+        return distance >= 2 && timeInterval >= 1
     }
     
     func loadRecentRuns() {
@@ -300,69 +301,66 @@ class RunManager: NSObject, ObservableObject {
     }
     
     private func createTestRuns() {
-        // Create test runs with GPS coordinates around San Francisco
+        // Create test runs with realistic GPS coordinates that show curved paths
         let testRuns: [RunSession] = [
             createTestRun(
                 distance: 5000, // 5km
                 duration: 1800, // 30 minutes
                 averagePace: 360, // 6 min/km
-                coordinates: [
-                    CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194), // Golden Gate Park
-                    CLLocationCoordinate2D(latitude: 37.7750, longitude: -122.4195),
-                    CLLocationCoordinate2D(latitude: 37.7751, longitude: -122.4196),
-                    CLLocationCoordinate2D(latitude: 37.7752, longitude: -122.4197),
-                    CLLocationCoordinate2D(latitude: 37.7753, longitude: -122.4198),
-                    CLLocationCoordinate2D(latitude: 37.7754, longitude: -122.4199),
-                    CLLocationCoordinate2D(latitude: 37.7755, longitude: -122.4200),
-                    CLLocationCoordinate2D(latitude: 37.7756, longitude: -122.4201),
-                    CLLocationCoordinate2D(latitude: 37.7757, longitude: -122.4202),
-                    CLLocationCoordinate2D(latitude: 37.7758, longitude: -122.4203)
-                ],
+                coordinates: generateCurvedRoute(
+                    startLat: 37.7749, startLon: -122.4194,
+                    endLat: 37.7789, endLon: -122.4234,
+                    points: 25
+                ),
                 startTime: Date().addingTimeInterval(-86400) // Yesterday
             ),
             createTestRun(
                 distance: 3000, // 3km
                 duration: 1200, // 20 minutes
                 averagePace: 400, // 6.67 min/km
-                coordinates: [
-                    CLLocationCoordinate2D(latitude: 37.7849, longitude: -122.4094), // Fisherman's Wharf
-                    CLLocationCoordinate2D(latitude: 37.7850, longitude: -122.4095),
-                    CLLocationCoordinate2D(latitude: 37.7851, longitude: -122.4096),
-                    CLLocationCoordinate2D(latitude: 37.7852, longitude: -122.4097),
-                    CLLocationCoordinate2D(latitude: 37.7853, longitude: -122.4098),
-                    CLLocationCoordinate2D(latitude: 37.7854, longitude: -122.4099),
-                    CLLocationCoordinate2D(latitude: 37.7855, longitude: -122.4100),
-                    CLLocationCoordinate2D(latitude: 37.7856, longitude: -122.4101)
-                ],
+                coordinates: generateCurvedRoute(
+                    startLat: 37.7849, startLon: -122.4094,
+                    endLat: 37.7879, endLon: -122.4124,
+                    points: 20
+                ),
                 startTime: Date().addingTimeInterval(-172800) // 2 days ago
             ),
             createTestRun(
                 distance: 8000, // 8km
                 duration: 2400, // 40 minutes
                 averagePace: 300, // 5 min/km
-                coordinates: [
-                    CLLocationCoordinate2D(latitude: 37.7649, longitude: -122.4294), // Mission District
-                    CLLocationCoordinate2D(latitude: 37.7650, longitude: -122.4295),
-                    CLLocationCoordinate2D(latitude: 37.7651, longitude: -122.4296),
-                    CLLocationCoordinate2D(latitude: 37.7652, longitude: -122.4297),
-                    CLLocationCoordinate2D(latitude: 37.7653, longitude: -122.4298),
-                    CLLocationCoordinate2D(latitude: 37.7654, longitude: -122.4299),
-                    CLLocationCoordinate2D(latitude: 37.7655, longitude: -122.4300),
-                    CLLocationCoordinate2D(latitude: 37.7656, longitude: -122.4301),
-                    CLLocationCoordinate2D(latitude: 37.7657, longitude: -122.4302),
-                    CLLocationCoordinate2D(latitude: 37.7658, longitude: -122.4303),
-                    CLLocationCoordinate2D(latitude: 37.7659, longitude: -122.4304),
-                    CLLocationCoordinate2D(latitude: 37.7660, longitude: -122.4305),
-                    CLLocationCoordinate2D(latitude: 37.7661, longitude: -122.4306),
-                    CLLocationCoordinate2D(latitude: 37.7662, longitude: -122.4307),
-                    CLLocationCoordinate2D(latitude: 37.7663, longitude: -122.4308)
-                ],
+                coordinates: generateCurvedRoute(
+                    startLat: 37.7649, startLon: -122.4294,
+                    endLat: 37.7709, endLon: -122.4354,
+                    points: 35
+                ),
                 startTime: Date().addingTimeInterval(-259200) // 3 days ago
             )
         ]
         
         recentRuns = testRuns
         saveRecentRuns()
+    }
+    
+    private func generateCurvedRoute(startLat: Double, startLon: Double, endLat: Double, endLon: Double, points: Int) -> [CLLocationCoordinate2D] {
+        var coordinates: [CLLocationCoordinate2D] = []
+        
+        for i in 0..<points {
+            let progress = Double(i) / Double(points - 1)
+            
+            // Create a curved path using a sine wave for natural movement
+            let latProgress = startLat + (endLat - startLat) * progress
+            let lonProgress = startLon + (endLon - startLon) * progress
+            
+            // Add some natural curve using sine wave
+            let curveOffset = sin(progress * .pi * 2) * 0.0005
+            let latWithCurve = latProgress + curveOffset
+            let lonWithCurve = lonProgress + curveOffset * 0.5
+            
+            coordinates.append(CLLocationCoordinate2D(latitude: latWithCurve, longitude: lonWithCurve))
+        }
+        
+        return coordinates
     }
     
     private func createTestRun(distance: Double, duration: TimeInterval, averagePace: Double, coordinates: [CLLocationCoordinate2D], startTime: Date) -> RunSession {
