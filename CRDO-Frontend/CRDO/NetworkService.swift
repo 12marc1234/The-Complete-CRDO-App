@@ -15,6 +15,7 @@ enum APIEndpoint {
     case signup(email: String, password: String, firstName: String, lastName: String)
     case login(email: String, password: String)
     case logout
+    case deleteAccount(password: String)
     case startRun
     case finishRun(runId: String, distance: Double, duration: TimeInterval, averageSpeed: Double, peakSpeed: Double)
     case getUserStats
@@ -33,6 +34,8 @@ enum APIEndpoint {
             return "/login"
         case .logout:
             return "/logout"
+        case .deleteAccount:
+            return "/deleteAccount"
         case .startRun:
             return "/startRun"
         case .finishRun:
@@ -56,7 +59,7 @@ enum APIEndpoint {
     
     var method: String {
         switch self {
-        case .signup, .login, .logout, .startRun, .finishRun, .sendFriendRequest, .respondToFriendRequest, .speedValidation:
+        case .signup, .login, .logout, .deleteAccount, .startRun, .finishRun, .sendFriendRequest, .respondToFriendRequest, .speedValidation:
             return "POST"
         case .getUserStats, .getDashboard, .getFriends, .health:
             return "GET"
@@ -72,6 +75,10 @@ enum APIEndpoint {
         case .login(let email, let password):
             let loginData = ["email": email, "password": password]
             return try? JSONSerialization.data(withJSONObject: loginData)
+            
+        case .deleteAccount(let password):
+            let deleteAccountData = ["password": password]
+            return try? JSONSerialization.data(withJSONObject: deleteAccountData)
             
         case .finishRun(let runId, let distance, let duration, let averageSpeed, let peakSpeed):
             let finishRunData: [String: Any] = [
@@ -138,6 +145,30 @@ class NetworkService: ObservableObject {
     func login(email: String, password: String) -> AnyPublisher<AuthResponse, Error> {
         let endpoint = APIEndpoint.login(email: email, password: password)
         return makeRequest(endpoint: endpoint)
+            .handleEvents(
+                receiveOutput: { data in
+                    print("🔍 Raw login response data: \(String(data: data, encoding: .utf8) ?? "Unable to decode")")
+                },
+                receiveCompletion: { completion in
+                    if case .failure(let error) = completion {
+                        print("❌ Login error: \(error)")
+                        if let decodingError = error as? DecodingError {
+                            switch decodingError {
+                            case .keyNotFound(let key, let context):
+                                print("❌ Missing key: \(key.stringValue) at path: \(context.codingPath)")
+                            case .typeMismatch(let type, let context):
+                                print("❌ Type mismatch: expected \(type) at path: \(context.codingPath)")
+                            case .valueNotFound(let type, let context):
+                                print("❌ Value not found: expected \(type) at path: \(context.codingPath)")
+                            case .dataCorrupted(let context):
+                                print("❌ Data corrupted at path: \(context.codingPath)")
+                            @unknown default:
+                                print("❌ Unknown decoding error")
+                            }
+                        }
+                    }
+                }
+            )
             .decode(type: AuthResponse.self, decoder: JSONDecoder())
             .eraseToAnyPublisher()
     }
@@ -146,6 +177,13 @@ class NetworkService: ObservableObject {
         let endpoint = APIEndpoint.logout
         return makeRequest(endpoint: endpoint)
             .decode(type: LogoutResponse.self, decoder: JSONDecoder())
+            .eraseToAnyPublisher()
+    }
+    
+    func deleteAccount(password: String) -> AnyPublisher<DeleteAccountResponse, Error> {
+        let endpoint = APIEndpoint.deleteAccount(password: password)
+        return makeRequest(endpoint: endpoint)
+            .decode(type: DeleteAccountResponse.self, decoder: JSONDecoder())
             .eraseToAnyPublisher()
     }
     
@@ -317,6 +355,28 @@ struct User: Codable {
     let lastName: String?
     let fullName: String?
     var bio: String? // New field for user bio
+    
+    // Custom initializer to handle missing fields
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        email = try container.decode(String.self, forKey: .email)
+        // These fields are optional and may not be present in backend response
+        firstName = try container.decodeIfPresent(String.self, forKey: .firstName) ?? nil
+        lastName = try container.decodeIfPresent(String.self, forKey: .lastName) ?? nil
+        fullName = try container.decodeIfPresent(String.self, forKey: .fullName) ?? nil
+        bio = try container.decodeIfPresent(String.self, forKey: .bio) ?? nil
+    }
+    
+    // Convenience initializer for creating User from backend data
+    init(id: String, email: String, firstName: String? = nil, lastName: String? = nil, fullName: String? = nil, bio: String? = nil) {
+        self.id = id
+        self.email = email
+        self.firstName = firstName
+        self.lastName = lastName
+        self.fullName = fullName
+        self.bio = bio
+    }
 }
 
 struct AuthResponse: Codable {
@@ -388,6 +448,10 @@ struct UserMetadata: Codable {
 }
 
 struct LogoutResponse: Codable {
+    let message: String
+}
+
+struct DeleteAccountResponse: Codable {
     let message: String
 }
 

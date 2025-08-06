@@ -1173,7 +1173,7 @@ class AchievementManager: ObservableObject {
             case "Speed Demon":
                 // Convert pace to seconds (lower is faster)
                 let paceInSeconds = bestPace == Double.infinity ? Double.infinity : bestPace
-                achievement.current = Int(paceInSeconds)
+                achievement.current = paceInSeconds == Double.infinity ? 0 : Int(paceInSeconds)
                 achievement.progress = paceInSeconds == Double.infinity ? 0.0 : max(0.0, (420.0 - paceInSeconds) / 420.0)
                 achievement.isUnlocked = paceInSeconds <= 420.0
                 if achievement.isUnlocked && achievement.unlockedDate == nil {
@@ -1183,7 +1183,7 @@ class AchievementManager: ObservableObject {
                 
             case "Sprint King":
                 let paceInSeconds = bestPace == Double.infinity ? Double.infinity : bestPace
-                achievement.current = Int(paceInSeconds)
+                achievement.current = paceInSeconds == Double.infinity ? 0 : Int(paceInSeconds)
                 achievement.progress = paceInSeconds == Double.infinity ? 0.0 : max(0.0, (360.0 - paceInSeconds) / 360.0)
                 achievement.isUnlocked = paceInSeconds <= 360.0
                 if achievement.isUnlocked && achievement.unlockedDate == nil {

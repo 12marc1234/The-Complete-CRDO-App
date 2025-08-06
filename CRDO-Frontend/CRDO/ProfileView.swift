@@ -415,6 +415,10 @@ struct SettingsSection: View {
 struct ActionsSection: View {
     @ObservedObject var authTracker: AuthenticationTracker
     let scrollOffset: CGFloat
+    @State private var showingDeleteConfirmation = false
+    @State private var deletePassword = ""
+    @State private var isDeletingAccount = false
+    @State private var deleteError = ""
     
     var body: some View {
         VStack(spacing: 15) {
@@ -426,8 +430,70 @@ struct ActionsSection: View {
             .frame(height: 50)
             .background(Color.red)
             .cornerRadius(25)
+            
+            Button("DELETE ACCOUNT") {
+                showingDeleteConfirmation = true
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(Color.black)
+            .cornerRadius(25)
+            .overlay(
+                RoundedRectangle(cornerRadius: 25)
+                    .stroke(Color.red, lineWidth: 2)
+            )
         }
         .padding(.horizontal)
+        .sheet(isPresented: $showingDeleteConfirmation) {
+            DeleteAccountConfirmationView(
+                password: $deletePassword,
+                isDeleting: $isDeletingAccount,
+                error: $deleteError,
+                onDelete: {
+                    deleteAccount()
+                },
+                onCancel: {
+                    showingDeleteConfirmation = false
+                    deletePassword = ""
+                    deleteError = ""
+                }
+            )
+        }
+    }
+    
+    private func deleteAccount() {
+        guard !deletePassword.isEmpty else {
+            deleteError = "Please enter your password"
+            return
+        }
+        
+        isDeletingAccount = true
+        deleteError = ""
+        
+        NetworkService.shared.deleteAccount(password: deletePassword)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    isDeletingAccount = false
+                    if case .failure(let error) = completion {
+                        deleteError = error.localizedDescription
+                    }
+                },
+                receiveValue: { response in
+                    // Account deleted successfully
+                    showingDeleteConfirmation = false
+                    deletePassword = ""
+                    deleteError = ""
+                    
+                    // Clear all local data
+                    authTracker.clearAllData()
+                    
+                    // Sign out
+                    authTracker.signOut()
+                }
+            )
+            .store(in: &authTracker.cancellables)
     }
 }
 
@@ -478,6 +544,108 @@ struct ScrollOffsetPreferenceKey: PreferenceKey {
 
 #Preview {
     ProfileView(authTracker: AuthenticationTracker.shared)
+}
+
+// MARK: - Delete Account Confirmation View
+
+struct DeleteAccountConfirmationView: View {
+    @Binding var password: String
+    @Binding var isDeleting: Bool
+    @Binding var error: String
+    let onDelete: () -> Void
+    let onCancel: () -> Void
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Background
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+                
+                VStack(spacing: 30) {
+                    // Warning icon
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.red)
+                    
+                    // Title
+                    Text("DELETE ACCOUNT")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.red)
+                    
+                    // Warning message
+                    Text("This action cannot be undone. All your data will be permanently deleted.")
+                        .font(.body)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    // Password field
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Enter your password to confirm:")
+                            .font(.body)
+                            .foregroundColor(.white)
+                        
+                        SecureField("Password", text: $password)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .foregroundColor(.black)
+                    }
+                    .padding(.horizontal)
+                    
+                    // Error message
+                    if !error.isEmpty {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding(.horizontal)
+                    }
+                    
+                    Spacer()
+                    
+                    // Action buttons
+                    VStack(spacing: 15) {
+                        Button(action: onDelete) {
+                            HStack {
+                                if isDeleting {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                }
+                                Text(isDeleting ? "Deleting..." : "DELETE ACCOUNT")
+                                    .fontWeight(.bold)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Color.red)
+                            .cornerRadius(25)
+                        }
+                        .disabled(isDeleting || password.isEmpty)
+                        
+                        Button(action: onCancel) {
+                            Text("Cancel")
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Color.gray)
+                                .cornerRadius(25)
+                        }
+                        .disabled(isDeleting)
+                    }
+                    .padding(.horizontal)
+                }
+                .padding()
+            }
+            .navigationTitle("Delete Account")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+        }
+    }
 }
 
 // MARK: - Achievements View

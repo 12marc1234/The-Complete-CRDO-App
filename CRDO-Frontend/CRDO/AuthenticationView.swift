@@ -24,16 +24,25 @@ class AuthenticationTracker: ObservableObject {
     
     init() {
         // Check if user was previously authenticated
-        if UserDefaults.standard.bool(forKey: "isAuthenticated") {
+        let isAuth = UserDefaults.standard.bool(forKey: "isAuthenticated")
+        print("🔐 AuthenticationTracker init - isAuthenticated: \(isAuth)")
+        
+        if isAuth {
             self.isAuthenticated = true
             if let userData = UserDefaults.standard.data(forKey: "userData"),
                let user = try? JSONDecoder().decode(User.self, from: userData) {
                 self.currentUser = user
+                print("🔐 AuthenticationTracker init - loaded user: \(user.email)")
+            } else {
+                print("🔐 AuthenticationTracker init - no user data found")
             }
         }
         // Check if user was in guest mode
         else if UserDefaults.standard.bool(forKey: "isGuestMode") {
             self.isGuestMode = true
+            print("🔐 AuthenticationTracker init - guest mode enabled")
+        } else {
+            print("🔐 AuthenticationTracker init - not authenticated, not guest mode")
         }
     }
     
@@ -105,6 +114,7 @@ class AuthenticationTracker: ObservableObject {
                 },
                 receiveValue: { success in
                     DispatchQueue.main.async {
+                        print("🔐 Login successful - setting authentication state")
                         self.isAuthenticated = true
                         self.isGuestMode = false
                         self.errorMessage = nil
@@ -112,14 +122,19 @@ class AuthenticationTracker: ObservableObject {
                         // Save authentication data
                         UserDefaults.standard.set(true, forKey: "isAuthenticated")
                         UserDefaults.standard.set(false, forKey: "isGuestMode")
+                        print("🔐 Saved authentication data to UserDefaults")
                         
                         // Set current user from DataManager
                         if let currentUser = DataManager.shared.currentUser {
                             self.currentUser = currentUser
+                            print("🔐 Set current user: \(currentUser.email)")
                             
                             if let userData = try? JSONEncoder().encode(currentUser) {
                                 UserDefaults.standard.set(userData, forKey: "userData")
+                                print("🔐 Saved user data to UserDefaults")
                             }
+                        } else {
+                            print("🔐 Warning: No current user in DataManager")
                         }
                         
                         // Reload local data for the new user
@@ -164,6 +179,42 @@ class AuthenticationTracker: ObservableObject {
         print("🧹 Cleared local data for user switch")
     }
     
+    func clearAllData() {
+        // Clear all UserDefaults
+        if let bundleID = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: bundleID)
+        }
+        
+        // Clear RunManager data
+        let runManager = RunManager()
+        runManager.recentRuns.removeAll()
+        runManager.saveRecentRuns()
+        
+        // Reset GemsManager data
+        let gemsManager = GemsManager.shared
+        gemsManager.totalGems = 0
+        gemsManager.gemsEarnedToday = 0
+        gemsManager.dailySecondsCompleted = 0
+        gemsManager.saveGemsData()
+        
+        // Clear DataManager cached data
+        DataManager.shared.userStats = nil
+        DataManager.shared.streak = nil
+        DataManager.shared.gems = nil
+        DataManager.shared.friends = []
+        
+        // Clear AchievementManager data
+        let achievementManager = AchievementManager.shared
+        achievementManager.achievements.removeAll()
+        UserDefaults.standard.removeObject(forKey: "unlockedAchievements")
+        
+        // Clear UserPreferencesManager data
+        let preferencesManager = UserPreferencesManager.shared
+        UserDefaults.standard.removeObject(forKey: "userPreferences")
+        
+        print("🗑️ Cleared ALL data for account deletion")
+    }
+    
     private func reloadLocalData() {
         // Reload RunManager data for the new user
         let runManager = RunManager()
@@ -192,6 +243,11 @@ struct AuthenticationView: View {
     @State private var lastName = ""
     @State private var showingPassword = false
     @State private var showingConfirmPassword = false
+    
+    init(authTracker: AuthenticationTracker) {
+        self.authTracker = authTracker
+        print("🔐 AuthenticationView initialized")
+    }
     @State private var rememberMe = false
     @State private var isLoading = false
     @State private var errorMessage = ""

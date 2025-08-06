@@ -28,6 +28,10 @@ struct ContentView: View {
                     .transition(.opacity.combined(with: .scale))
             }
         }
+        .onAppear {
+            print("📱 ContentView appeared - isAuthenticated: \(authTracker.isAuthenticated)")
+            print("📱 ContentView appeared - isGuestMode: \(authTracker.isGuestMode)")
+        }
     }
 }
 
