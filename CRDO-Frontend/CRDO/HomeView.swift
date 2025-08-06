@@ -120,7 +120,27 @@ struct HomeView: View {
                         }
                     }
                     
-
+                    // Return to Run button (only show when run is active)
+                    if runManager.isRunning {
+                        Button("Return to Run") {
+                            showingRunMap = true
+                        }
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.blue.opacity(0.8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                )
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
+                    }
                     
                     Spacer(minLength: 100)
                 }
@@ -390,13 +410,6 @@ struct RunMapView: View {
                         dismiss()
                     }
                     .foregroundColor(.white)
-                    
-                    Button("Back to Start") {
-                        // This would typically navigate back to the start run page
-                        // For now, we'll just dismiss this view
-                        dismiss()
-                    }
-                    .foregroundColor(.blue)
                     
                     Spacer()
                     
