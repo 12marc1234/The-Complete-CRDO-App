@@ -121,6 +121,30 @@ class RunManager: NSObject, ObservableObject {
         route.removeAll()
     }
     
+    func pauseRun() {
+        guard isRunning else { return }
+        
+        print("⏸️ Pausing run...")
+        locationManager.stopUpdatingLocation()
+        timer?.invalidate()
+        timer = nil
+        isRunning = false
+    }
+    
+    func resumeRun() {
+        guard !isRunning, currentRun != nil else { return }
+        
+        print("▶️ Resuming run...")
+        locationManager.startUpdatingLocation()
+        
+        // Restart timer
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            self.updateRunStats()
+        }
+        
+        isRunning = true
+    }
+    
     func finishRun() {
         guard let run = currentRun else { return }
         
@@ -165,6 +189,9 @@ class RunManager: NSObject, ObservableObject {
         recentRuns.insert(updatedRun, at: 0)
         saveRecentRuns() // Save the updated runs list
         
+        // Save to WorkoutStore for the workout history
+        saveToWorkoutHistory(updatedRun)
+        
         // Update daily progress (persists even when logging out)
         GemsManager.shared.addDailyProgress(seconds: Int(finalDuration))
         
@@ -180,6 +207,32 @@ class RunManager: NSObject, ObservableObject {
         
         // Stop location updates
         locationManager.stopUpdatingLocation()
+    }
+    
+    private func saveToWorkoutHistory(_ run: RunSession) {
+        print("💾 saveToWorkoutHistory called with run route count: \(run.route.count)")
+        
+        // Convert RunSession to Workout
+        let workout = Workout(
+            date: run.startTime,
+            averageSpeed: run.averagePace > 0 ? 60 / run.averagePace : 0, // Convert pace to speed
+            peakSpeed: run.averagePace > 0 ? 60 / run.averagePace : 0, // Use average as peak for now
+            distance: run.distance / 1609.34, // Convert meters to miles
+            time: run.duration,
+            route: run.route.map { Coordinate($0) }, // Convert CLLocationCoordinate2D to Coordinate
+            category: .running
+        )
+        
+        print("💾 Created workout with route count: \(workout.route.count)")
+        print("💾 Workout route coordinates: \(workout.route.map { "\($0.latitude), \($0.longitude)" })")
+        
+        // Save to WorkoutStore
+        WorkoutStore.shared.saveWorkout(workout)
+        
+        // Post notification to trigger UI updates
+        NotificationCenter.default.post(name: NSNotification.Name("WorkoutAdded"), object: nil)
+        
+        print("💾 Workout saved to WorkoutStore and notification posted")
     }
     
     private func updateRunStats() {

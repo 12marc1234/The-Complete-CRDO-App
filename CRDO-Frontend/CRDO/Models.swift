@@ -283,8 +283,8 @@ class GemsManager: ObservableObject {
         saveGemsData()
         
         // Force UI update immediately
-        self.objectWillChange.send()
-        print("💎 Gems updated - Total: \(self.totalGems), Daily: \(self.gemsEarnedToday)")
+            self.objectWillChange.send()
+            print("💎 Gems updated - Total: \(self.totalGems), Daily: \(self.gemsEarnedToday)")
         
         // Also notify MainAppView to refresh
         DispatchQueue.main.async {
@@ -479,10 +479,10 @@ struct StatCard: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(red: 0.1, green: 0.1, blue: 0.15))
-                .overlay(
+        .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .stroke(color.opacity(0.2), lineWidth: 1)
-                )
+        )
         )
         .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
     }
@@ -513,10 +513,10 @@ struct CompactStatCard: View {
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(red: 0.1, green: 0.1, blue: 0.15))
-                .overlay(
+        .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(color.opacity(0.2), lineWidth: 1)
-                )
+        )
         )
         .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
     }
@@ -1347,5 +1347,129 @@ class AchievementManager: ObservableObject {
     
     func refreshAchievements() {
         calculateAchievements()
+    }
+} 
+
+// MARK: - Workout Models
+struct Workout: Identifiable, Codable {
+    let id: UUID
+    let date: Date
+    let averageSpeed: Double
+    let peakSpeed: Double
+    let distance: Double
+    let time: TimeInterval
+    let route: [Coordinate]
+    let category: WorkoutCategory
+    
+    init(date: Date, averageSpeed: Double, peakSpeed: Double, distance: Double, time: TimeInterval, route: [Coordinate], category: WorkoutCategory = .running) {
+        self.id = UUID()
+        self.date = date
+        self.averageSpeed = averageSpeed
+        self.peakSpeed = peakSpeed
+        self.distance = distance
+        self.time = time
+        self.route = route
+        self.category = category
+    }
+}
+
+struct Coordinate: Codable {
+    let latitude: Double
+    let longitude: Double
+    
+    var clLocationCoordinate2D: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+    
+    init(latitude: Double, longitude: Double) {
+        self.latitude = latitude
+        self.longitude = longitude
+    }
+    
+    init(_ coordinate: CLLocationCoordinate2D) {
+        self.latitude = coordinate.latitude
+        self.longitude = coordinate.longitude
+    }
+}
+
+enum WorkoutCategory: String, CaseIterable, Codable {
+    case running = "Running"
+    case walking = "Walking"
+    case cycling = "Cycling"
+    
+    var icon: String {
+        switch self {
+        case .running:
+            return "figure.run"
+        case .walking:
+            return "figure.walk"
+        case .cycling:
+            return "figure.outdoor.cycle"
+        }
+    }
+}
+
+class WorkoutStore: ObservableObject {
+    @Published var workouts: [Workout] = []
+    private let userDefaults = UserDefaults.standard
+    
+    // Shared instance for app-wide access
+    static let shared = WorkoutStore()
+    
+    init() {
+        loadWorkouts()
+    }
+    
+    func saveWorkout(_ workout: Workout) {
+        print("💾 WorkoutStore.saveWorkout called with workout ID: \(workout.id)")
+        print("💾 Current workouts count before save: \(workouts.count)")
+        
+        workouts.append(workout)
+        saveWorkouts()
+        objectWillChange.send() // Explicitly trigger UI update
+        
+        print("💾 Workout saved to store. Total workouts: \(workouts.count)")
+        print("💾 WorkoutStore.objectWillChange.send() called")
+    }
+    
+    func deleteWorkout(_ workout: Workout) {
+        workouts.removeAll { $0.id == workout.id }
+        saveWorkouts()
+    }
+    
+    func clearAllWorkouts() {
+        workouts.removeAll()
+        saveWorkouts()
+    }
+    
+    private func getWorkoutsKey() -> String {
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        return "workouts_\(userId)"
+    }
+    
+    private func loadWorkouts() {
+        let key = getWorkoutsKey()
+        print("📱 loadWorkouts called with key: \(key)")
+        
+        if let data = userDefaults.data(forKey: key),
+           let decodedWorkouts = try? JSONDecoder().decode([Workout].self, from: data) {
+            workouts = decodedWorkouts
+            print("📱 Successfully loaded \(workouts.count) workouts from UserDefaults")
+        } else {
+            print("📱 No saved workouts found for user")
+        }
+    }
+    
+    private func saveWorkouts() {
+        let key = getWorkoutsKey()
+        print("💾 saveWorkouts called with key: \(key)")
+        print("💾 Attempting to save \(workouts.count) workouts")
+        
+        if let encoded = try? JSONEncoder().encode(workouts) {
+            userDefaults.set(encoded, forKey: key)
+            print("💾 Successfully saved \(workouts.count) workouts to UserDefaults")
+        } else {
+            print("❌ Failed to encode workouts for saving")
+        }
     }
 } 

@@ -127,25 +127,28 @@ struct HomeView: View {
                         VStack(spacing: 24) {
                             // Enhanced run stats with better spacing
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 16) {
-                                StatCard(
+                                RunStatCard(
                                     title: "Distance",
                                     value: UnitConverter.formatDistance(runManager.distance, unitSystem: preferencesManager.preferences.unitSystem),
                                     subtitle: preferencesManager.preferences.unitSystem == .imperial ? "miles" : "km",
-                                    color: .blue
+                                    color: .blue,
+                                    icon: "location.fill"
                                 )
                                 
-                                StatCard(
+                                RunStatCard(
                                     title: "Duration",
                                     value: UnitConverter.formatDuration(runManager.duration),
                                     subtitle: "time",
-                                    color: .green
+                                    color: .green,
+                                    icon: "clock.fill"
                                 )
                                 
-                                StatCard(
+                                RunStatCard(
                                     title: "Pace",
                                     value: UnitConverter.formatPace(runManager.pace, unitSystem: preferencesManager.preferences.unitSystem),
                                     subtitle: preferencesManager.preferences.unitSystem == .imperial ? "min/mi" : "min/km",
-                                    color: .orange
+                                    color: .orange,
+                                    icon: "timer"
                                 )
                             }
                             .padding(.horizontal, 20)
@@ -231,9 +234,6 @@ struct StreakSection: View {
     
     @State private var glowAnimation = false
     @State private var pulseAnimation = false
-    @State private var showingCelebration = false
-    @State private var celebrationScale: CGFloat = 1.0
-    @State private var goalCompletedToday = false
     
     var body: some View {
         VStack(spacing: 20) {
@@ -249,7 +249,6 @@ struct StreakSection: View {
                     // Dev button to add 5 minutes
                     Button("+5min") {
                         gemsManager.addDailyProgress(seconds: 300) // 5 minutes = 300 seconds
-                        checkGoalCompletion()
                     }
                     .font(.caption)
                     .foregroundColor(.blue)
@@ -300,58 +299,6 @@ struct StreakSection: View {
                     glowAnimation = true
                     pulseAnimation = true
                 }
-                .onChange(of: gemsManager.dailyProgressPercentage) { _ in
-                    checkGoalCompletion()
-                }
-                .onChange(of: gemsManager.dailySecondsCompleted) { _ in
-                    // Reset goal completion flag when daily progress changes (new day)
-                    if gemsManager.dailySecondsCompleted == 0 {
-                        goalCompletedToday = false
-                    }
-                }
-                .scaleEffect(celebrationScale)
-                .overlay(
-                    Group {
-                        if showingCelebration {
-                            ZStack {
-                                // Celebration background glow
-                                Circle()
-                                    .fill(Color.yellow.opacity(0.3))
-                                    .frame(width: 200, height: 200)
-                                    .scaleEffect(showingCelebration ? 1.5 : 0.5)
-                                    .opacity(showingCelebration ? 0.8 : 0)
-                                    .animation(.easeInOut(duration: 1.0), value: showingCelebration)
-                                
-                                // Celebration particles
-                                ForEach(0..<30, id: \.self) { index in
-                                    Circle()
-                                        .fill(Color.yellow)
-                                        .frame(width: 10, height: 10)
-                                        .offset(x: CGFloat.random(in: -80...80), y: CGFloat.random(in: -80...80))
-                                        .opacity(showingCelebration ? 0.9 : 0)
-                                        .scaleEffect(showingCelebration ? 1.0 : 0.1)
-                                        .animation(.easeOut(duration: 2.5).delay(Double(index) * 0.05), value: showingCelebration)
-                                }
-                                
-                                // Celebration text
-                                VStack(spacing: 8) {
-                                    Text("🎉")
-                                        .font(.system(size: 40))
-                                        .scaleEffect(showingCelebration ? 1.2 : 0.5)
-                                        .animation(.easeInOut(duration: 0.8).repeatCount(3, autoreverses: true), value: showingCelebration)
-                                    
-                                    Text("GOAL COMPLETED!")
-                                        .font(.title2)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.yellow)
-                                        .multilineTextAlignment(.center)
-                                        .scaleEffect(showingCelebration ? 1.1 : 0.8)
-                                        .animation(.easeInOut(duration: 0.6), value: showingCelebration)
-                                }
-                            }
-                        }
-                    }
-                )
             }
             
             // Streak Display
@@ -417,26 +364,6 @@ struct StreakSection: View {
             .padding(.horizontal, 20)
         }
         .padding(.horizontal, 20)
-    }
-    
-    private func checkGoalCompletion() {
-        if gemsManager.dailyProgressPercentage >= 1.0 && !showingCelebration && !goalCompletedToday {
-            goalCompletedToday = true
-            showingCelebration = true
-            celebrationScale = 1.2
-            
-            // Animate celebration
-            withAnimation(.easeInOut(duration: 0.5)) {
-                celebrationScale = 1.0
-            }
-            
-            // Hide celebration after 3 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                withAnimation(.easeOut(duration: 0.5)) {
-                    showingCelebration = false
-                }
-            }
-        }
     }
     
     private func formatTimeDisplay(_ totalSeconds: Int) -> String {
@@ -548,7 +475,7 @@ struct QuickStatsSection: View {
     }
 }
 
-// MARK: - Run Map View
+// MARK: - Enhanced Run Map View
 
 struct RunMapView: View {
     @ObservedObject var runManager: RunManager
@@ -559,124 +486,399 @@ struct RunMapView: View {
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     )
     @State private var showAverageSpeed = true
+    @State private var showConfetti = false
+    
+    // Device-specific adaptations
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    @Environment(\.verticalSizeClass) var verticalSizeClass
+    
+    // Adaptive sizing based on device
+    private var adaptiveSpacing: CGFloat {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return 40
+        } else if UIScreen.main.bounds.height > 800 {
+            return 35
+        } else {
+            return 30
+        }
+    }
+
+    private var adaptiveIconSize: CGFloat {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return 80
+        } else if UIScreen.main.bounds.height > 800 {
+            return 70
+        } else {
+            return 60
+        }
+    }
+
+    private var adaptiveTitleSize: CGFloat {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return 32
+        } else if UIScreen.main.bounds.height > 800 {
+            return 28
+        } else {
+            return 24
+        }
+    }
     
     var body: some View {
         ZStack {
-            // Dark background
+            // Enhanced dark background
             LinearGradient(
-                gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
-                startPoint: .top,
-                endPoint: .bottom
+                gradient: Gradient(colors: [Color.black, Color.gray.opacity(0.3), Color.black]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header
+                // Enhanced Header with Clearer Controls
                 HStack {
-                    Button("Close") {
+                    // Close/Back Button
+                    Button(action: {
                         dismiss()
-                    }
-                    .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Text("Active Run")
-                        .font(.headline)
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                            Text("CLOSE")
+                                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        }
                         .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.white.opacity(0.15))
+                        .cornerRadius(20)
+                    }
                     
                     Spacer()
                     
-                    Button("Stop") {
-                        runManager.stopRun()
-                        dismiss()
+                    // Run Status
+                    VStack(spacing: 4) {
+                        Text("ACTIVE RUN")
+                            .font(.system(size: 16, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white)
+                        
+                        if runManager.isRunning {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 6, height: 6)
+                                    .scaleEffect(1.2)
+                                    .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: runManager.isRunning)
+                                
+                                Text("LIVE TRACKING")
+                                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                    .foregroundColor(.green)
+                            }
+                        } else {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(Color.orange)
+                                    .frame(width: 6, height: 6)
+                                
+                                Text("PAUSED")
+                                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                    .foregroundColor(.orange)
+                            }
+                        }
                     }
-                    .foregroundColor(.red)
+                    
+                    Spacer()
+                    
+                    // Main Action Button (Start/Pause/Resume)
+                    Button(action: {
+                        if runManager.isRunning {
+                            // Pause the run
+                            runManager.pauseRun()
+                        } else {
+                            // Resume the run
+                            runManager.resumeRun()
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: runManager.isRunning ? "pause.circle.fill" : "play.circle.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                            Text(runManager.isRunning ? "PAUSE" : "RESUME")
+                                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        }
+                        .foregroundColor(runManager.isRunning ? .orange : .green)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(runManager.isRunning ? Color.orange.opacity(0.15) : Color.green.opacity(0.15))
+                        .cornerRadius(20)
+                    }
                 }
-                .padding()
+                .padding(.horizontal, 20)
+                .padding(.vertical, 15)
                 .background(Color.black.opacity(0.8))
                 
-                // Map
-                Map(coordinateRegion: $region, showsUserLocation: true, userTrackingMode: .constant(.follow))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
-                // Stats overlay
-                VStack(spacing: 16) {
-                    // Average Speed Display
-                    if showAverageSpeed {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text("Current Speed")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Text(UnitConverter.formatSpeed(runManager.currentSpeed, unitSystem: preferencesManager.preferences.unitSystem))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.gold)
+                // Enhanced Map
+                ZStack {
+                    Map(coordinateRegion: $region, showsUserLocation: true, userTrackingMode: .constant(.follow))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    
+                    // Live tracking indicator
+                    if runManager.isRunning {
+                        VStack {
+                            HStack {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 8, height: 8)
+                                    .scaleEffect(1.5)
+                                    .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: runManager.isRunning)
+                                
+                                Text("LIVE")
+                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.green)
                             }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.black.opacity(0.7))
+                            .cornerRadius(15)
                             
                             Spacer()
-                            
-                            VStack(alignment: .trailing) {
-                                Text("Average Speed")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Text(UnitConverter.formatSpeed(runManager.averageSpeed, unitSystem: preferencesManager.preferences.unitSystem))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                            }
                         }
-                        .padding()
-                        .background(Color.black.opacity(0.8))
-                        .cornerRadius(12)
+                        .padding(.top, 20)
+                        .padding(.leading, 20)
                     }
-                    
-                    // Run stats
-                    HStack(spacing: 20) {
-                        VStack {
-                            Text("Distance")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Text(UnitConverter.formatDistance(runManager.currentRun?.distance ?? 0, unitSystem: preferencesManager.preferences.unitSystem))
-                                .font(.headline)
-                                .foregroundColor(.white)
-                        }
-                        
-                        VStack {
-                            Text("Time")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Text(formatRunTime(Int(runManager.currentRun?.duration ?? 0)))
-                                .font(.headline)
-                                .foregroundColor(.white)
-                        }
-                        
-                        VStack {
-                            Text("Pace")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Text(UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: preferencesManager.preferences.unitSystem))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.orange)
-                        }
-                    }
-                    .padding()
-                    .background(Color.black.opacity(0.8))
-                    .cornerRadius(12)
                 }
-                .padding()
+                
+                // Compact Stats overlay
+                VStack(spacing: 0) {
+                    Spacer()
+                    
+                    // Main stats row
+                    HStack(spacing: 12) {
+                        // Current Speed
+                        CompactStatCard(
+                            title: "CURRENT",
+                            value: UnitConverter.formatSpeed(runManager.currentSpeed, unitSystem: preferencesManager.preferences.unitSystem),
+                            color: .blue
+                        )
+                        
+                        // Average Speed
+                        CompactStatCard(
+                            title: "AVERAGE",
+                            value: UnitConverter.formatSpeed(runManager.averageSpeed, unitSystem: preferencesManager.preferences.unitSystem),
+                            color: .green
+                        )
+                        
+                        // Distance
+                        CompactStatCard(
+                            title: "DISTANCE",
+                            value: UnitConverter.formatDistance(runManager.currentRun?.distance ?? 0, unitSystem: preferencesManager.preferences.unitSystem),
+                            color: .orange
+                        )
+                        
+                        // Time
+                        CompactStatCard(
+                            title: "TIME",
+                            value: formatRunTime(Int(runManager.currentRun?.duration ?? 0)),
+                            color: .purple
+                        )
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
+                    
+                    // Pace and Finish row
+                    HStack(spacing: 16) {
+                        CompactStatCard(
+                            title: "PACE",
+                            value: UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: preferencesManager.preferences.unitSystem),
+                            color: .red
+                        )
+                        
+                        Spacer()
+                        
+                        // Enhanced Finish Run Button
+                        Button(action: {
+                            runManager.finishRun()
+                            dismiss()
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "stop.circle.fill")
+                                    .font(.system(size: 18, weight: .semibold))
+                                Text("FINISH RUN")
+                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color.red, Color.red.opacity(0.8)]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .cornerRadius(25)
+                            .shadow(color: Color.red.opacity(0.3), radius: 8, x: 0, y: 4)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
+                }
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color.black.opacity(0.8), Color.black.opacity(0.6)]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            }
+        }
+        .onAppear {
+            // Start location updates if not already running
+            if !runManager.isRunning {
+                runManager.startRun()
             }
         }
     }
     
-    private func formatRunTime(_ seconds: Int) -> String {
-        let minutes = seconds / 60
-        let remainingSeconds = seconds % 60
-        return String(format: "%d:%02d", minutes, remainingSeconds)
+    private func formatRunTime(_ totalSeconds: Int) -> String {
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%02d:%02d", minutes, seconds)
+        }
     }
-    
+}
 
+// MARK: - Enhanced Stat Card
+
+struct RunStatCard: View {
+    let title: String
+    let value: String
+    let subtitle: String
+    let color: Color
+    let icon: String
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(color)
+                
+                Spacer()
+                
+                Text(title)
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(.gray)
+            }
+            
+            Text(value)
+                .font(.system(size: 18, weight: .bold, design: .monospaced))
+                .foregroundColor(.white)
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+            
+            Text(subtitle)
+                .font(.system(size: 8, weight: .medium, design: .monospaced))
+                .foregroundColor(.gray)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 10)
+        .background(Color.white.opacity(0.1))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(color.opacity(0.3), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Pause Menu View
+
+struct PauseMenuView: View {
+    @ObservedObject var runManager: RunManager
+    let onResume: () -> Void
+    let onFinish: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.8)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 30) {
+                // Header
+                VStack(spacing: 10) {
+                    Image(systemName: "pause.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.orange)
+                    
+                    Text("RUN PAUSED")
+                        .font(.system(size: 24, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                    
+                    Text("What would you like to do?")
+                        .font(.system(size: 16, weight: .medium, design: .monospaced))
+                        .foregroundColor(.gray)
+                }
+                
+                // Action buttons
+                VStack(spacing: 16) {
+                    Button(action: {
+                        runManager.resumeRun()
+                        onResume()
+                        dismiss()
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 24))
+                            Text("RESUME RUN")
+                                .font(.system(size: 18, weight: .bold, design: .monospaced))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.green)
+                        .cornerRadius(12)
+                    }
+                    
+                    Button(action: {
+                        runManager.finishRun()
+                        onFinish()
+                        dismiss()
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "stop.circle.fill")
+                                .font(.system(size: 24))
+                            Text("FINISH RUN")
+                                .font(.system(size: 18, weight: .bold, design: .monospaced))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.red)
+                        .cornerRadius(12)
+                    }
+                    
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Text("CANCEL")
+                            .font(.system(size: 16, weight: .medium, design: .monospaced))
+                            .foregroundColor(.gray)
+                            .padding(.vertical, 12)
+                    }
+                }
+                .padding(.horizontal, 40)
+                
+                Spacer()
+            }
+            .padding(.top, 60)
+        }
+    }
 }
 
 struct GemsSection: View {

@@ -63,7 +63,7 @@ struct MainAppView: View {
                         .tag(0)
                     
                     // Recent Runs Tab
-                    RecentRunsView(runManager: runManager)
+                    RecentRunsView()
                         .tabItem {
                             Image(systemName: "clock.fill")
                             Text("Recent")
