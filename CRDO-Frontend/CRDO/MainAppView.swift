@@ -20,149 +20,59 @@ struct MainAppView: View {
     var body: some View {
         ZStack {
             // Background
-            LinearGradient(
-                gradient: Gradient(colors: [Color.black, Color.black.opacity(0.8)]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            LinearGradient.backgroundGradient
+                .ignoresSafeArea()
             
-            TabView(selection: $selectedTab) {
-                // Home Tab
-                HomeView(runManager: runManager, permissionManager: permissionManager)
-                    .tabItem {
-                        Image(systemName: "house.fill")
-                        Text("Home")
-                    }
-                    .tag(0)
-                
-                // Recent Runs Tab
-                RecentRunsView(runManager: runManager)
-                    .tabItem {
-                        Image(systemName: "clock.fill")
-                        Text("Recent")
-                    }
-                    .tag(1)
-                
-                // Friends Tab (only show if authenticated)
-                if authTracker.isAuthenticated {
+            VStack(spacing: 0) {
+                // Content
+                TabView(selection: $selectedTab) {
+                    // Home Tab
+                    HomeView(runManager: runManager, permissionManager: permissionManager)
+                        .tabItem {
+                            Image(systemName: "house.fill")
+                            Text("Home")
+                        }
+                        .tag(0)
+                    
+                    // Recent Runs Tab
+                    RecentRunsView(runManager: runManager)
+                        .tabItem {
+                            Image(systemName: "clock.fill")
+                            Text("Recent")
+                        }
+                        .tag(1)
+                    
+                    // Friends Tab
                     FriendsView()
                         .tabItem {
                             Image(systemName: "person.2.fill")
                             Text("Friends")
                         }
                         .tag(2)
-                }
-                
-                // Profile Tab
-                ProfileView(authTracker: authTracker)
-                    .tabItem {
-                        Image(systemName: "person.fill")
-                        Text("Profile")
-                    }
-                    .tag(authTracker.isAuthenticated ? 3 : 2)
-                
-                // City Tab
-                CityView()
-                    .tabItem {
-                        Image(systemName: "building.2.fill")
-                        Text("City")
-                    }
-                    .tag(authTracker.isAuthenticated ? 4 : 3)
-            }
-            .accentColor(.gold)
-            .onAppear {
-                // Set tab bar appearance for dark mode
-                let appearance = UITabBarAppearance()
-                appearance.configureWithOpaqueBackground()
-                appearance.backgroundColor = UIColor.black
-                appearance.stackedLayoutAppearance.selected.iconColor = UIColor.systemYellow
-                appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.systemYellow]
-                appearance.stackedLayoutAppearance.normal.iconColor = UIColor.systemGray
-                appearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.systemGray]
-                
-                UITabBar.appearance().standardAppearance = appearance
-                UITabBar.appearance().scrollEdgeAppearance = appearance
-                
-                // Refresh gems data
-                gemsManager.refreshGemsData()
-            }
-            
-            // Gems display in top right corner
-            VStack {
-                HStack {
-                    Spacer()
                     
-                    VStack(spacing: 4) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "diamond.fill")
-                                .foregroundColor(.yellow)
-                                .font(.title3)
-                            
-                            Text("\(gemsManager.totalGems)")
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.yellow)
+                    // City Tab
+                    CityView()
+                        .tabItem {
+                            Image(systemName: "building.2.fill")
+                            Text("City")
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(20)
-                        
-                        // Guest mode indicator
-                        if authTracker.isGuestMode {
-                            HStack(spacing: 4) {
-                                Image(systemName: "person.fill")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                
-                                Text("Guest Mode")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(Color.black.opacity(0.6))
-                            .cornerRadius(10)
-                        }
-                    }
-                }
-                .padding(.top, 60)
-                .padding(.horizontal, 20)
-                
-                Spacer()
-            }
-            
-            // APP UPDATED indicator
-            if showAppUpdated {
-                VStack {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(appUpdatedColor)
-                        Text("APP UPDATED!")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(appUpdatedColor)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.8))
-                    .cornerRadius(20)
-                    .shadow(color: appUpdatedColor.opacity(0.3), radius: 10)
+                        .tag(3)
                     
-                    Spacer()
+                    // Profile Tab
+                    ProfileView(authTracker: authTracker)
+                        .tabItem {
+                            Image(systemName: "person.circle.fill")
+                            Text("Profile")
+                        }
+                        .tag(4)
                 }
-                .padding(.top, 60)
-                .transition(.move(edge: .top).combined(with: .opacity))
                 .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            showAppUpdated = false
-                        }
-                    }
+                    // Refresh gems data
+                    gemsManager.refreshGemsData()
                 }
             }
         }
+        .preferredColorScheme(.dark)
         .onAppear {
             // Show APP UPDATED indicator when app loads (reduced delay)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {

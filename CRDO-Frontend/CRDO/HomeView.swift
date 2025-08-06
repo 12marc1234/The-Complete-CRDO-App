@@ -21,16 +21,8 @@ struct HomeView: View {
     var body: some View {
         ZStack {
             // Enhanced gradient background
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.05, green: 0.05, blue: 0.1),
-                    Color(red: 0.1, green: 0.1, blue: 0.15),
-                    Color.black
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            LinearGradient.backgroundGradient
+                .ignoresSafeArea()
             
             ScrollView {
                 VStack(spacing: 24) {
