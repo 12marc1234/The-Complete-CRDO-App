@@ -23,7 +23,6 @@ extension Color {
 
 struct UserPreferences: Codable {
     var unitSystem: UnitSystem = .imperial
-    var showSpeed: Bool = true
     var autoPause: Bool = true
     var voiceAnnouncements: Bool = false
     var totalGems: Int = 0

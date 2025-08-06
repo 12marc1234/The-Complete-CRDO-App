@@ -319,6 +319,7 @@ struct StreakCard: View {
 
 struct QuickStatsSection: View {
     @ObservedObject var runManager: RunManager
+    @ObservedObject var preferencesManager = UserPreferencesManager.shared
     
     var body: some View {
         VStack(spacing: 16) {
@@ -330,8 +331,8 @@ struct QuickStatsSection: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
                 StatCard(
                     title: "Total Distance",
-                    value: String(format: "%.1f", runManager.totalDistance),
-                    subtitle: "miles",
+                    value: UnitConverter.formatDistance(runManager.totalDistance * 1609.34, unitSystem: preferencesManager.preferences.unitSystem),
+                    subtitle: preferencesManager.preferences.unitSystem == .imperial ? "miles" : "km",
                     color: .blue
                 )
                 
@@ -344,15 +345,15 @@ struct QuickStatsSection: View {
                 
                 StatCard(
                     title: "Average Pace",
-                    value: UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: .imperial),
-                    subtitle: "min/mi",
+                    value: UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: preferencesManager.preferences.unitSystem),
+                    subtitle: preferencesManager.preferences.unitSystem == .imperial ? "min/mi" : "min/km",
                     color: .orange
                 )
                 
                 StatCard(
                     title: "Best Run",
-                    value: String(format: "%.1f", runManager.bestDistance),
-                    subtitle: "miles",
+                    value: UnitConverter.formatDistance(runManager.bestDistance * 1609.34, unitSystem: preferencesManager.preferences.unitSystem),
+                    subtitle: preferencesManager.preferences.unitSystem == .imperial ? "miles" : "km",
                     color: .gold
                 )
             }

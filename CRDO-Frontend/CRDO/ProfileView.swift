@@ -192,6 +192,7 @@ struct ProfileHeaderSection: View {
 
 struct StatsSection: View {
     let scrollOffset: CGFloat
+    @ObservedObject var preferencesManager = UserPreferencesManager.shared
     
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
@@ -210,15 +211,15 @@ struct StatsSection: View {
                 
                 StatCard(
                     title: "Total Distance",
-                    value: "156.2 mi",
+                    value: UnitConverter.formatDistance(156.2 * 1609.34, unitSystem: preferencesManager.preferences.unitSystem),
                     subtitle: "Lifetime",
                     color: .green
                 )
                 
                 StatCard(
                     title: "Average Pace",
-                    value: "8:30",
-                    subtitle: "This month",
+                    value: UnitConverter.formatPace(8.5, unitSystem: preferencesManager.preferences.unitSystem),
+                    subtitle: preferencesManager.preferences.unitSystem == .imperial ? "min/mi" : "min/km",
                     color: .orange
                 )
                 
