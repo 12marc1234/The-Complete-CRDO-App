@@ -18,6 +18,70 @@ struct HomeView: View {
     @State private var showingRunMap = false
     @State private var showingUserSettings = false
     
+    private var currentStreak: Int {
+        let calendar = Calendar.current
+        let today = Date()
+        var streak = 0
+        
+        // Sort runs by date (most recent first)
+        let sortedRuns = runManager.recentRuns.sorted { $0.startTime > $1.startTime }
+        
+        for dayOffset in 0...365 { // Check up to a year back
+            let checkDate = calendar.date(byAdding: .day, value: -dayOffset, to: today) ?? today
+            
+            // Check if there's a run on this date
+            let hasRunOnDate = sortedRuns.contains { run in
+                calendar.isDate(run.startTime, inSameDayAs: checkDate)
+            }
+            
+            if hasRunOnDate {
+                streak += 1
+            } else {
+                break // Streak broken
+            }
+        }
+        
+        return streak
+    }
+    
+    private var longestStreak: Int {
+        let calendar = Calendar.current
+        var longestStreak = 0
+        var currentStreak = 0
+        var lastRunDate: Date?
+        
+        // Sort runs by date (oldest first)
+        let sortedRuns = runManager.recentRuns.sorted { $0.startTime < $1.startTime }
+        
+        for run in sortedRuns {
+            if let lastDate = lastRunDate {
+                let daysBetween = calendar.dateComponents([.day], from: lastDate, to: run.startTime).day ?? 0
+                
+                if daysBetween == 1 {
+                    // Consecutive day
+                    currentStreak += 1
+                } else if daysBetween > 1 {
+                    // Gap in streak, reset
+                    longestStreak = max(longestStreak, currentStreak)
+                    currentStreak = 1
+                } else {
+                    // Same day, don't increment
+                    continue
+                }
+            } else {
+                // First run
+                currentStreak = 1
+            }
+            
+            lastRunDate = run.startTime
+        }
+        
+        // Check final streak
+        longestStreak = max(longestStreak, currentStreak)
+        
+        return longestStreak
+    }
+    
     var body: some View {
         ZStack {
             // Enhanced gradient background
@@ -28,8 +92,8 @@ struct HomeView: View {
                 VStack(spacing: 24) {
                     // Enhanced streak section
                     StreakSection(
-                        currentStreak: 5, // Mock value for now
-                        longestStreak: 12, // Mock value for now
+                        currentStreak: currentStreak,
+                        longestStreak: longestStreak,
                         freezeTokens: 3, // Mock value for now
                         isRunActive: runManager.isRunning,
                         onStartRun: {
@@ -198,8 +262,8 @@ struct StreakSection: View {
                 ZStack {
                     // Background circle
                     Circle()
-                        .stroke(Color.gray.opacity(0.3), lineWidth: 8)
-                        .frame(width: 120, height: 120)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 10)
+                        .frame(width: 150, height: 150)
                     
                     // Progress circle
                     Circle()
@@ -210,9 +274,9 @@ struct StreakSection: View {
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),
-                            style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                            style: StrokeStyle(lineWidth: 10, lineCap: .round)
                         )
-                        .frame(width: 120, height: 120)
+                        .frame(width: 150, height: 150)
                         .rotationEffect(.degrees(-90))
                         .animation(.easeInOut(duration: 0.5), value: gemsManager.dailySecondsCompleted)
                     
@@ -222,7 +286,7 @@ struct StreakSection: View {
                         let minutes = totalSeconds / 60
                         let seconds = totalSeconds % 60
                         
-                        Text("\(minutes):\(String(format: "%02d", seconds))")
+                        Text(formatTimeDisplay(totalSeconds))
                             .font(.system(size: 24, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                         
@@ -243,22 +307,40 @@ struct StreakSection: View {
                     Group {
                         if showingCelebration {
                             ZStack {
+                                // Celebration background glow
+                                Circle()
+                                    .fill(Color.yellow.opacity(0.3))
+                                    .frame(width: 200, height: 200)
+                                    .scaleEffect(showingCelebration ? 1.5 : 0.5)
+                                    .opacity(showingCelebration ? 0.8 : 0)
+                                    .animation(.easeInOut(duration: 1.0), value: showingCelebration)
+                                
                                 // Celebration particles
-                                ForEach(0..<20, id: \.self) { index in
+                                ForEach(0..<30, id: \.self) { index in
                                     Circle()
                                         .fill(Color.yellow)
-                                        .frame(width: 8, height: 8)
-                                        .offset(x: CGFloat.random(in: -50...50), y: CGFloat.random(in: -50...50))
-                                        .opacity(0.8)
-                                        .animation(.easeOut(duration: 2.0).delay(Double(index) * 0.1), value: showingCelebration)
+                                        .frame(width: 10, height: 10)
+                                        .offset(x: CGFloat.random(in: -80...80), y: CGFloat.random(in: -80...80))
+                                        .opacity(showingCelebration ? 0.9 : 0)
+                                        .scaleEffect(showingCelebration ? 1.0 : 0.1)
+                                        .animation(.easeOut(duration: 2.5).delay(Double(index) * 0.05), value: showingCelebration)
                                 }
                                 
                                 // Celebration text
-                                Text("🎉 GOAL COMPLETED! 🎉")
-                                    .font(.headline)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.yellow)
-                                    .animation(.easeInOut(duration: 1.0), value: showingCelebration)
+                                VStack(spacing: 8) {
+                                    Text("🎉")
+                                        .font(.system(size: 40))
+                                        .scaleEffect(showingCelebration ? 1.2 : 0.5)
+                                        .animation(.easeInOut(duration: 0.8).repeatCount(3, autoreverses: true), value: showingCelebration)
+                                    
+                                    Text("GOAL COMPLETED!")
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.yellow)
+                                        .multilineTextAlignment(.center)
+                                        .scaleEffect(showingCelebration ? 1.1 : 0.8)
+                                        .animation(.easeInOut(duration: 0.6), value: showingCelebration)
+                                }
                             }
                         }
                     }
@@ -346,6 +428,18 @@ struct StreakSection: View {
                     showingCelebration = false
                 }
             }
+        }
+    }
+    
+    private func formatTimeDisplay(_ totalSeconds: Int) -> String {
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        
+        if hours > 0 {
+            return "\(hours):\(String(format: "%02d", minutes)):\(String(format: "%02d", seconds))"
+        } else {
+            return "\(minutes):\(String(format: "%02d", seconds))"
         }
     }
 }
@@ -573,6 +667,8 @@ struct RunMapView: View {
         let remainingSeconds = seconds % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
     }
+    
+
 }
 
 struct GemsSection: View {

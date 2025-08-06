@@ -143,10 +143,49 @@ class GemsManager: ObservableObject {
     }
     
     func addDailyProgress(seconds: Int) {
+        let wasGoalCompleted = dailyProgressPercentage >= 1.0
         dailySecondsCompleted += seconds
         checkDailyReset() // Check if it's a new day
         saveGemsData()
+        
+        // If goal was just completed, update streak
+        if !wasGoalCompleted && dailyProgressPercentage >= 1.0 {
+            updateStreakForGoalCompletion()
+        }
+        
         print("⏱️ Added \(seconds) seconds to daily progress. Total: \(dailySecondsCompleted)")
+    }
+    
+    private func updateStreakForGoalCompletion() {
+        // Create a virtual run entry for today to maintain streak
+        let today = Date()
+        let calendar = Calendar.current
+        
+        // Check if we already have a run for today
+        guard let runManager = RunManager.currentInstance else {
+            print("⚠️ RunManager not available for streak update")
+            return
+        }
+        
+        let hasRunToday = runManager.recentRuns.contains { run in
+            calendar.isDate(run.startTime, inSameDayAs: today)
+        }
+        
+        if !hasRunToday {
+            // Create a virtual run entry for streak purposes
+            var virtualRun = RunSession()
+            virtualRun.startTime = today
+            virtualRun.endTime = today
+            virtualRun.distance = 0 // Virtual run for streak only
+            virtualRun.duration = TimeInterval(dailySecondsCompleted)
+            virtualRun.isActive = false
+            
+            // Add to recent runs
+            runManager.recentRuns.insert(virtualRun, at: 0)
+            runManager.saveRecentRuns()
+            
+            print("🔥 Streak updated - virtual run created for goal completion")
+        }
     }
     
     func setDailyGoal(minutes: Int) {
