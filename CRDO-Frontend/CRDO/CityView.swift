@@ -94,34 +94,56 @@ struct BuildingSelectionPanel: View {
     @ObservedObject var gemsManager = GemsManager.shared
     
     var body: some View {
-        VStack(spacing: 15) {
-            // Gems display
+        VStack(spacing: 12) {
+            // Clean gems display
             HStack {
-                Image(systemName: "diamond.fill")
-                    .foregroundColor(.yellow)
-                    .font(.title2)
-                
-                Text("\(gemsManager.totalGems)")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.yellow)
+                HStack(spacing: 6) {
+                    Image(systemName: "diamond.fill")
+                        .foregroundColor(.yellow)
+                        .font(.title3)
+                    
+                    Text("\(gemsManager.totalGems)")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.yellow)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.black.opacity(0.3))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
+                        )
+                )
                 
                 Spacer()
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 20)
             
-            // Building types
+            // Compact building selector
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 15) {
+                HStack(spacing: 12) {
                     ForEach(BuildingType.allCases, id: \.self) { buildingType in
-                        BuildingCard(buildingType: buildingType)
+                        CompactBuildingCard(buildingType: buildingType)
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 20)
             }
         }
-        .padding(.vertical)
-        .background(Color.black.opacity(0.5))
+        .padding(.vertical, 8)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black.opacity(0.7),
+                    Color.black.opacity(0.4),
+                    Color.clear
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
 }
 
@@ -200,6 +222,89 @@ struct BuildingCard: View {
             }
         }
         .scaleEffect(cityManager.selectedBuildingType == buildingType ? 1.05 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: cityManager.selectedBuildingType)
+        .alert("Purchase Failed", isPresented: $showingPurchaseAlert) {
+            Button("OK") { }
+        } message: {
+            Text(purchaseError)
+        }
+    }
+}
+
+struct CompactBuildingCard: View {
+    @ObservedObject var cityManager = CityManager.shared
+    @ObservedObject var gemsManager = GemsManager.shared
+    let buildingType: BuildingType
+    @State private var showingPurchaseAlert = false
+    @State private var purchaseError = ""
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            // Compact building icon
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                buildingType.color.opacity(0.8),
+                                buildingType.color.opacity(0.6)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 36, height: 36)
+                    .shadow(color: .black.opacity(0.3), radius: 2, x: 1, y: 1)
+                
+                Image(buildingType.realisticIcon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
+                    .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 0.5)
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(buildingType.rawValue)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                
+                HStack(spacing: 3) {
+                    Image(systemName: "diamond.fill")
+                        .font(.caption2)
+                        .foregroundColor(.yellow)
+                    
+                    Text("\(buildingType.cost)")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.yellow)
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(
+                            cityManager.selectedBuildingType == buildingType ? 
+                            buildingType.color.opacity(0.6) : Color.white.opacity(0.15),
+                            lineWidth: cityManager.selectedBuildingType == buildingType ? 2 : 1
+                        )
+                )
+        )
+        .onTapGesture {
+            if gemsManager.totalGems >= buildingType.cost {
+                cityManager.selectedBuildingType = buildingType
+                cityManager.isPlacingBuilding = true
+            } else {
+                purchaseError = "Not enough gems! You need \(buildingType.cost) gems but only have \(gemsManager.totalGems)."
+                showingPurchaseAlert = true
+            }
+        }
+        .scaleEffect(cityManager.selectedBuildingType == buildingType ? 1.02 : 1.0)
         .animation(.easeInOut(duration: 0.1), value: cityManager.selectedBuildingType)
         .alert("Purchase Failed", isPresented: $showingPurchaseAlert) {
             Button("OK") { }
