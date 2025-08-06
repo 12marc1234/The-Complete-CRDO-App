@@ -167,14 +167,32 @@ struct StreakSection: View {
     
     @State private var glowAnimation = false
     @State private var pulseAnimation = false
+    @State private var showingCelebration = false
+    @State private var celebrationScale: CGFloat = 1.0
     
     var body: some View {
         VStack(spacing: 20) {
             // Daily Progress Circle
             VStack(spacing: 15) {
-                Text("DAILY GOAL: 15 MIN")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                HStack {
+                    Text("DAILY GOAL: 15 MIN")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    // Dev button to add 5 minutes
+                    Button("+5min") {
+                        gemsManager.addDailyProgress(seconds: 300) // 5 minutes = 300 seconds
+                        checkGoalCompletion()
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.2))
+                    .cornerRadius(8)
+                }
                 
                 // Progress Circle
                 ZStack {
@@ -217,6 +235,34 @@ struct StreakSection: View {
                     glowAnimation = true
                     pulseAnimation = true
                 }
+                .onChange(of: gemsManager.dailyProgressPercentage) { _ in
+                    checkGoalCompletion()
+                }
+                .scaleEffect(celebrationScale)
+                .overlay(
+                    Group {
+                        if showingCelebration {
+                            ZStack {
+                                // Celebration particles
+                                ForEach(0..<20, id: \.self) { index in
+                                    Circle()
+                                        .fill(Color.yellow)
+                                        .frame(width: 8, height: 8)
+                                        .offset(x: CGFloat.random(in: -50...50), y: CGFloat.random(in: -50...50))
+                                        .opacity(0.8)
+                                        .animation(.easeOut(duration: 2.0).delay(Double(index) * 0.1), value: showingCelebration)
+                                }
+                                
+                                // Celebration text
+                                Text("🎉 GOAL COMPLETED! 🎉")
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.yellow)
+                                    .animation(.easeInOut(duration: 1.0), value: showingCelebration)
+                            }
+                        }
+                    }
+                )
             }
             
             // Streak Display
@@ -283,6 +329,25 @@ struct StreakSection: View {
         }
         .padding(.horizontal, 20)
     }
+    
+    private func checkGoalCompletion() {
+        if gemsManager.dailyProgressPercentage >= 1.0 && !showingCelebration {
+            showingCelebration = true
+            celebrationScale = 1.2
+            
+            // Animate celebration
+            withAnimation(.easeInOut(duration: 0.5)) {
+                celebrationScale = 1.0
+            }
+            
+            // Hide celebration after 3 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                withAnimation(.easeOut(duration: 0.5)) {
+                    showingCelebration = false
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Streak Card
@@ -345,7 +410,7 @@ struct QuickStatsSection: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
                 StatCard(
                     title: "Total Distance",
-                    value: UnitConverter.formatDistance(runManager.totalDistance * 1609.34, unitSystem: preferencesManager.preferences.unitSystem),
+                    value: UnitConverter.formatDistance(runManager.totalDistance, unitSystem: preferencesManager.preferences.unitSystem),
                     subtitle: preferencesManager.preferences.unitSystem == .imperial ? "miles" : "km",
                     color: .blue
                 )
@@ -359,14 +424,14 @@ struct QuickStatsSection: View {
                 
                 StatCard(
                     title: "Average Pace",
-                    value: UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: preferencesManager.preferences.unitSystem),
+                    value: UnitConverter.formatPace(runManager.averagePace, unitSystem: preferencesManager.preferences.unitSystem),
                     subtitle: preferencesManager.preferences.unitSystem == .imperial ? "min/mi" : "min/km",
                     color: .orange
                 )
                 
                 StatCard(
-                    title: "Best Run",
-                    value: UnitConverter.formatDistance(runManager.bestDistance * 1609.34, unitSystem: preferencesManager.preferences.unitSystem),
+                    title: "Longest Run",
+                    value: UnitConverter.formatDistance(runManager.longestDistance, unitSystem: preferencesManager.preferences.unitSystem),
                     subtitle: preferencesManager.preferences.unitSystem == .imperial ? "miles" : "km",
                     color: .gold
                 )

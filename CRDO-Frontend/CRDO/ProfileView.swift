@@ -40,10 +40,7 @@ struct ProfileView: View {
                         .scaleEffect(max(0.8, 1.0 - scrollOffset / 400))
                         .padding(.horizontal, 20)
                         
-                        // Stats summary with fade-in
-                        StatsSection(scrollOffset: scrollOffset)
-                            .opacity(max(0.3, 1.0 - scrollOffset / 300))
-                            .padding(.horizontal, 20)
+                        // Stats summary removed - redundant with Quick Stats on home
                         
                         // Gems section with fade-in
                         ProfileGemsSection(gemsManager: gemsManager, scrollOffset: scrollOffset)
@@ -190,50 +187,7 @@ struct ProfileHeaderSection: View {
 
 // MARK: - Stats Section
 
-struct StatsSection: View {
-    let scrollOffset: CGFloat
-    @ObservedObject var preferencesManager = UserPreferencesManager.shared
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("Your Stats")
-                .font(.headline)
-                .foregroundColor(.white)
-                .padding(.horizontal)
-            
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 15) {
-                StatCard(
-                    title: "Total Runs",
-                    value: "24",
-                    subtitle: "This month",
-                    color: .blue
-                )
-                
-                StatCard(
-                    title: "Total Distance",
-                    value: UnitConverter.formatDistance(156.2 * 1609.34, unitSystem: preferencesManager.preferences.unitSystem),
-                    subtitle: "Lifetime",
-                    color: .green
-                )
-                
-                StatCard(
-                    title: "Average Pace",
-                    value: UnitConverter.formatPace(8.5, unitSystem: preferencesManager.preferences.unitSystem),
-                    subtitle: preferencesManager.preferences.unitSystem == .imperial ? "min/mi" : "min/km",
-                    color: .orange
-                )
-                
-                StatCard(
-                    title: "Best Time",
-                    value: "1:23:45",
-                    subtitle: "10K race",
-                    color: .purple
-                )
-            }
-            .padding(.horizontal)
-        }
-    }
-}
+// StatsSection removed - redundant with Quick Stats on home
 
 // MARK: - Gems Section
 

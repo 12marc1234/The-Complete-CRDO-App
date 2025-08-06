@@ -38,6 +38,7 @@ class RunManager: NSObject, ObservableObject {
     @Published var totalTime: Int = 0
     @Published var averagePace: Double = 0.0
     @Published var bestDistance: Double = 0.0
+    @Published var longestDistance: Double = 0.0
     
     private let locationManager = CLLocationManager()
     private var timer: Timer?
@@ -216,6 +217,9 @@ class RunManager: NSObject, ObservableObject {
         
         // Calculate best distance
         bestDistance = recentRuns.map { $0.distance }.max() ?? 0.0
+        
+        // Calculate longest distance
+        longestDistance = recentRuns.map { $0.distance }.max() ?? 0.0
     }
     
     private func shouldAddToRoute(_ location: CLLocation) -> Bool {
