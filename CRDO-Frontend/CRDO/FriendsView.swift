@@ -888,6 +888,59 @@ struct FriendRequestDetailCard: View {
     }
 }
 
+// MARK: - All Achievements View
+
+struct AllAchievementsView: View {
+    let achievements: [Achievement]
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                LinearGradient.backgroundGradient
+                    .ignoresSafeArea()
+                
+                if achievements.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "trophy")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("No Achievements")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                        
+                        Text("This user hasn't earned any achievements yet")
+                            .font(.body)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                    }
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 15) {
+                            ForEach(achievements) { achievement in
+                                AchievementCard(achievement: achievement)
+                            }
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .navigationTitle("All Achievements")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+    }
+}
+
 #Preview {
     FriendsView()
 }
@@ -1133,6 +1186,7 @@ struct RecentActivitySectionView: View {
 
 struct AchievementsSectionView: View {
     let achievements: [Achievement]
+    @State private var showingAllAchievements = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
@@ -1144,7 +1198,7 @@ struct AchievementsSectionView: View {
                 Spacer()
                 
                 Button("View All") {
-                    // TODO: Navigate to full achievements view
+                    showingAllAchievements = true
                 }
                 .foregroundColor(.gold)
             }
@@ -1156,6 +1210,9 @@ struct AchievementsSectionView: View {
                 }
             }
             .padding(.horizontal)
+        }
+        .sheet(isPresented: $showingAllAchievements) {
+            AllAchievementsView(achievements: achievements)
         }
     }
 }
@@ -1173,11 +1230,6 @@ struct CitySectionView: View {
                     .foregroundColor(.white)
                 
                 Spacer()
-                
-                Button("View Full City") {
-                    // TODO: Navigate to full city view
-                }
-                .foregroundColor(.gold)
             }
             .padding(.horizontal)
             
