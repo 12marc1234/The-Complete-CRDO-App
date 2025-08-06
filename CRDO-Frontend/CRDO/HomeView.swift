@@ -208,12 +208,6 @@ struct StreakSection: View {
                         .tracking(1)
                     
                     Spacer()
-                    
-                    Button("View All") {
-                        // Placeholder action
-                    }
-                    .font(.caption2)
-                    .foregroundColor(.gold.opacity(0.8))
                 }
                 
                 // Streak Cards
@@ -396,6 +390,13 @@ struct RunMapView: View {
                         dismiss()
                     }
                     .foregroundColor(.white)
+                    
+                    Button("Back to Start") {
+                        // This would typically navigate back to the start run page
+                        // For now, we'll just dismiss this view
+                        dismiss()
+                    }
+                    .foregroundColor(.blue)
                     
                     Spacer()
                     

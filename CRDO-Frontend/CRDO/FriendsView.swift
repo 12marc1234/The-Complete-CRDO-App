@@ -18,6 +18,8 @@ struct FriendsView: View {
     @State private var selectedFriend: MockFriend?
     @State private var showingProfile = false
     @State private var scrollOffset: CGFloat = 0
+    @State private var showingAddFriend = false
+    @State private var friendRequests: [MockFriend] = []
     
     private let timeframes = ["This Week", "This Month", "All Time"]
     
@@ -80,6 +82,7 @@ struct FriendsView: View {
                     if selectedTab == 0 {
                         FriendsTabView(
                             friends: friends,
+                            friendRequests: friendRequests,
                             unitSystem: preferencesManager.preferences.unitSystem,
                             showingFriendRequests: $showingFriendRequests,
                             selectedFriend: $selectedFriend,
@@ -103,7 +106,7 @@ struct FriendsView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Add Friend") {
-                        // Add friend functionality
+                        showingAddFriend = true
                     }
                     .foregroundColor(.gold)
                 }
@@ -113,9 +116,60 @@ struct FriendsView: View {
                     FriendProfileView(friend: friend, unitSystem: preferencesManager.preferences.unitSystem)
                 }
             }
+            .sheet(isPresented: $showingAddFriend) {
+                AddFriendView()
+            }
+            .sheet(isPresented: $showingFriendRequests) {
+                FriendRequestsView(friendRequests: friendRequests) { request in
+                    acceptFriendRequest(request)
+                } onDecline: { request in
+                    declineFriendRequest(request)
+                }
+            }
         }
         .onAppear {
             generateMockData()
+            generateMockFriendRequests()
+        }
+    }
+    
+    private func generateMockFriendRequests() {
+        friendRequests = [
+            MockFriend(
+                name: "John Smith",
+                email: "john@example.com",
+                avatar: "person.circle.fill",
+                status: .online,
+                lastActive: Date(),
+                totalRuns: 15,
+                totalDistance: 45000,
+                averagePace: 300,
+                bio: "New to running, excited to join the community!"
+            ),
+            MockFriend(
+                name: "Lisa Brown",
+                email: "lisa@example.com",
+                avatar: "person.circle.fill",
+                status: .offline,
+                lastActive: Date().addingTimeInterval(-3600),
+                totalRuns: 22,
+                totalDistance: 67000,
+                averagePace: 280,
+                bio: "Trail runner and nature lover. Always up for a challenge!"
+            )
+        ]
+    }
+    
+    private func acceptFriendRequest(_ request: MockFriend) {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            friendRequests.removeAll { $0.id == request.id }
+            friends.append(request)
+        }
+    }
+    
+    private func declineFriendRequest(_ request: MockFriend) {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            friendRequests.removeAll { $0.id == request.id }
         }
     }
     
@@ -210,39 +264,17 @@ struct FriendsView: View {
 
 struct FriendsTabView: View {
     let friends: [MockFriend]
+    let friendRequests: [MockFriend]
     let unitSystem: UnitSystem
     @Binding var showingFriendRequests: Bool
     @Binding var selectedFriend: MockFriend?
     @Binding var showingProfile: Bool
     let scrollOffset: CGFloat
-    @State private var friendRequests: [MockFriend] = [
-        MockFriend(
-            name: "John Smith",
-            email: "john@example.com",
-            avatar: "person.circle.fill",
-            status: .online,
-            lastActive: Date(),
-            totalRuns: 15,
-            totalDistance: 45000,
-            averagePace: 300,
-            bio: "New to running, excited to join the community!"
-        ),
-        MockFriend(
-            name: "Lisa Brown",
-            email: "lisa@example.com",
-            avatar: "person.circle.fill",
-            status: .offline,
-            lastActive: Date().addingTimeInterval(-3600),
-            totalRuns: 22,
-            totalDistance: 67000,
-            averagePace: 280,
-            bio: "Trail runner and nature lover. Always up for a challenge!"
-        )
-    ]
     @State private var currentFriends: [MockFriend]
     
-    init(friends: [MockFriend], unitSystem: UnitSystem, showingFriendRequests: Binding<Bool>, selectedFriend: Binding<MockFriend?>, showingProfile: Binding<Bool>, scrollOffset: CGFloat) {
+    init(friends: [MockFriend], friendRequests: [MockFriend], unitSystem: UnitSystem, showingFriendRequests: Binding<Bool>, selectedFriend: Binding<MockFriend?>, showingProfile: Binding<Bool>, scrollOffset: CGFloat) {
         self.friends = friends
+        self.friendRequests = friendRequests
         self.unitSystem = unitSystem
         self._showingFriendRequests = showingFriendRequests
         self._selectedFriend = selectedFriend
@@ -277,10 +309,10 @@ struct FriendsTabView: View {
                                     name: request.name,
                                     mutualFriends: Int.random(in: 1...5),
                                     onAccept: {
-                                        acceptFriendRequest(request)
+                                        // This will be handled by the parent view
                                     },
                                     onDecline: {
-                                        declineFriendRequest(request)
+                                        // This will be handled by the parent view
                                     }
                                 )
                             }
@@ -313,19 +345,6 @@ struct FriendsTabView: View {
                 }
                 .opacity(max(0.5, 1.0 - scrollOffset / 250)) // Improved readability
             }
-        }
-    }
-    
-    private func acceptFriendRequest(_ request: MockFriend) {
-        withAnimation(.easeInOut(duration: 0.3)) {
-            friendRequests.removeAll { $0.id == request.id }
-            currentFriends.append(request)
-        }
-    }
-    
-    private func declineFriendRequest(_ request: MockFriend) {
-        withAnimation(.easeInOut(duration: 0.3)) {
-            friendRequests.removeAll { $0.id == request.id }
         }
     }
 }
@@ -602,6 +621,270 @@ struct LeaderboardCard: View {
         default:
             return .blue
         }
+    }
+}
+
+// MARK: - Add Friend View
+
+struct AddFriendView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var email = ""
+    @State private var isSearching = false
+    @State private var searchResults: [MockFriend] = []
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                LinearGradient.backgroundGradient
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 20) {
+                    Text("Add Friend")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    VStack(spacing: 15) {
+                        TextField("Enter friend's email", text: $email)
+                            .textFieldStyle(CustomTextFieldStyle())
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
+                        
+                        Button("Search") {
+                            searchFriend()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(email.isEmpty)
+                    }
+                    .padding(.horizontal)
+                    
+                    if isSearching {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    } else if !searchResults.isEmpty {
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                ForEach(searchResults) { friend in
+                                    SearchResultCard(friend: friend) {
+                                        sendFriendRequest(to: friend)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+        .alert("Friend Request", isPresented: $showingAlert) {
+            Button("OK") { }
+        } message: {
+            Text(alertMessage)
+        }
+    }
+    
+    private func searchFriend() {
+        guard !email.isEmpty else { return }
+        
+        isSearching = true
+        
+        // Simulate API call
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            isSearching = false
+            
+            // Mock search results
+            searchResults = [
+                MockFriend(
+                    name: "John Doe",
+                    email: email,
+                    avatar: "person.circle.fill",
+                    status: .online,
+                    lastActive: Date(),
+                    totalRuns: 25,
+                    totalDistance: 75000,
+                    averagePace: 290,
+                    bio: "Fitness enthusiast and running buddy!"
+                )
+            ]
+        }
+    }
+    
+    private func sendFriendRequest(to friend: MockFriend) {
+        // Simulate sending friend request
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            alertMessage = "Friend request sent to \(friend.name)!"
+            showingAlert = true
+            
+            // Dismiss after showing alert
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                dismiss()
+            }
+        }
+    }
+}
+
+struct SearchResultCard: View {
+    let friend: MockFriend
+    let onAdd: () -> Void
+    
+    var body: some View {
+        HStack {
+            Image(systemName: friend.avatar)
+                .font(.title2)
+                .foregroundColor(.gray)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(friend.name)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                Text(friend.email)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+            
+            Spacer()
+            
+            Button("Add") {
+                onAdd()
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .background(Color.black.opacity(0.3))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Friend Requests View
+
+struct FriendRequestsView: View {
+    let friendRequests: [MockFriend]
+    let onAccept: (MockFriend) -> Void
+    let onDecline: (MockFriend) -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                LinearGradient.backgroundGradient
+                    .ignoresSafeArea()
+                
+                if friendRequests.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "person.2.slash")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("No Friend Requests")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                        
+                        Text("You don't have any pending friend requests")
+                            .font(.body)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                    }
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 15) {
+                            ForEach(friendRequests) { request in
+                                FriendRequestDetailCard(
+                                    friend: request,
+                                    onAccept: {
+                                        onAccept(request)
+                                        if friendRequests.count == 1 {
+                                            dismiss()
+                                        }
+                                    },
+                                    onDecline: {
+                                        onDecline(request)
+                                        if friendRequests.count == 1 {
+                                            dismiss()
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .navigationTitle("Friend Requests")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+    }
+}
+
+struct FriendRequestDetailCard: View {
+    let friend: MockFriend
+    let onAccept: () -> Void
+    let onDecline: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack {
+                Image(systemName: friend.avatar)
+                    .font(.title)
+                    .foregroundColor(.gray)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(friend.name)
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Text(friend.email)
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                
+                Spacer()
+            }
+            
+            if !friend.bio.isEmpty {
+                Text(friend.bio)
+                    .font(.body)
+                    .foregroundColor(.white.opacity(0.8))
+            }
+            
+            HStack(spacing: 12) {
+                Button("Accept") {
+                    onAccept()
+                }
+                .buttonStyle(.borderedProminent)
+                
+                Button("Decline") {
+                    onDecline()
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding()
+        .background(Color.black.opacity(0.3))
+        .cornerRadius(12)
     }
 }
 
