@@ -114,6 +114,14 @@ struct FriendsView: View {
             .sheet(isPresented: $showingProfile) {
                 if let friend = selectedFriend {
                     FriendProfileView(friend: friend, unitSystem: preferencesManager.preferences.unitSystem)
+                        .onDisappear {
+                            selectedFriend = nil
+                        }
+                }
+            }
+            .onChange(of: showingProfile) { isPresented in
+                if !isPresented {
+                    selectedFriend = nil
                 }
             }
             .sheet(isPresented: $showingAddFriend) {
@@ -335,6 +343,7 @@ struct FriendsTabView: View {
                                 friend: friend,
                                 unitSystem: unitSystem,
                                 onTap: {
+                                    print("👥 Tapped on friend: \(friend.name)")
                                     selectedFriend = friend
                                     showingProfile = true
                                 }
