@@ -299,7 +299,7 @@ struct FriendsTabView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Text("Friend Requests")
-                                .font(.headline)
+                                .font(.system(size: 18, weight: .bold, design: .monospaced))
                                 .foregroundColor(.white)
                             
                             Spacer()
@@ -333,7 +333,7 @@ struct FriendsTabView: View {
                 // Friends list with fade-in
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Your Friends")
-                        .font(.headline)
+                        .font(.system(size: 18, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                         .padding(.horizontal)
                     
@@ -370,12 +370,12 @@ struct FriendRequestCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "person.circle.fill")
-                    .font(.title2)
+                    .font(.system(size: 20, weight: .bold, design: .monospaced))
                     .foregroundColor(.gray)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(name)
-                        .font(.headline)
+                        .font(.system(size: 18, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                     
                     Text("\(mutualFriends) mutual friends")
@@ -452,7 +452,7 @@ struct FriendCard: View {
                         .frame(width: 50, height: 50)
                     
                     Image(systemName: friend.avatar)
-                        .font(.title2)
+                        .font(.system(size: 20, weight: .bold, design: .monospaced))
                         .foregroundColor(statusColor)
                 }
                 
@@ -460,7 +460,7 @@ struct FriendCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(friend.name)
-                            .font(.headline)
+                            .font(.system(size: 18, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                         
                         Circle()
@@ -580,15 +580,14 @@ struct LeaderboardCard: View {
                     .frame(width: 40, height: 40)
                 
                 Text("\(entry.rank)")
-                    .font(.headline)
-                    .fontWeight(.bold)
+                    .font(.system(size: 18, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
             }
             
             // Runner info
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.name)
-                    .font(.headline)
+                    .font(.system(size: 18, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
                 
                 Text("\(entry.totalRuns) runs • \(UnitConverter.formatDistance(entry.distance, unitSystem: unitSystem))")
@@ -651,8 +650,7 @@ struct AddFriendView: View {
                 
                 VStack(spacing: 20) {
                     Text("Add Friend")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.system(size: 20, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                     
                     VStack(spacing: 15) {
@@ -753,12 +751,12 @@ struct SearchResultCard: View {
     var body: some View {
         HStack {
             Image(systemName: friend.avatar)
-                .font(.title2)
+                .font(.system(size: 20, weight: .bold, design: .monospaced))
                 .foregroundColor(.gray)
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(friend.name)
-                    .font(.headline)
+                    .font(.system(size: 18, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
                 
                 Text(friend.email)
@@ -800,8 +798,7 @@ struct FriendRequestsView: View {
                             .foregroundColor(.gray)
                         
                         Text("No Friend Requests")
-                            .font(.title2)
-                            .fontWeight(.semibold)
+                            .font(.system(size: 20, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                         
                         Text("You don't have any pending friend requests")
@@ -862,7 +859,7 @@ struct FriendRequestDetailCard: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(friend.name)
-                        .font(.headline)
+                        .font(.system(size: 18, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                     
                     Text(friend.email)
@@ -916,8 +913,7 @@ struct AllAchievementsView: View {
                             .foregroundColor(.gray)
                         
                         Text("No Achievements")
-                            .font(.title2)
-                            .fontWeight(.semibold)
+                            .font(.system(size: 20, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                         
                         Text("This user hasn't earned any achievements yet")
@@ -1023,7 +1019,7 @@ struct RecentActivityCard: View {
             // Activity info
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.headline)
+                    .font(.system(size: 18, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
                 
                 Text("\(UnitConverter.formatDistance(distance, unitSystem: unitSystem)) • \(UnitConverter.formatDuration(duration))")
@@ -1125,7 +1121,7 @@ struct StatsSectionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
             Text("Stats")
-                .font(.headline)
+                .font(.system(size: 18, weight: .bold, design: .monospaced))
                 .foregroundColor(.white)
                 .padding(.horizontal)
             
@@ -1171,7 +1167,7 @@ struct RecentActivitySectionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
             Text("Recent Activity")
-                .font(.headline)
+                .font(.system(size: 18, weight: .bold, design: .monospaced))
                 .foregroundColor(.white)
                 .padding(.horizontal)
             
@@ -1201,7 +1197,7 @@ struct AchievementsSectionView: View {
         VStack(alignment: .leading, spacing: 15) {
             HStack {
                 Text("Achievements")
-                    .font(.headline)
+                    .font(.system(size: 18, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
                 
                 Spacer()
@@ -1235,7 +1231,7 @@ struct CitySectionView: View {
         VStack(alignment: .leading, spacing: 15) {
             HStack {
                 Text("City")
-                    .font(.headline)
+                    .font(.system(size: 18, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
                 
                 Spacer()
@@ -1299,8 +1295,7 @@ struct ProfileHeaderView: View {
             VStack(spacing: 8) {
                 HStack {
                     Text(friend.name)
-                        .font(.title2)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 20, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                     
                     Circle()

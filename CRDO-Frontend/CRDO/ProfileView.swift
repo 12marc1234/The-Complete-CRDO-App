@@ -139,8 +139,7 @@ struct ProfileHeaderSection: View {
             // User info
             VStack(spacing: 8) {
                 Text(authTracker.currentUser?.fullName ?? (authTracker.currentUser?.firstName != nil ? "\(authTracker.currentUser?.firstName ?? "") \(authTracker.currentUser?.lastName ?? "")" : "User"))
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 20, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
                 
                 if isEditingBio {
@@ -198,7 +197,7 @@ struct ProfileGemsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
             Text("Gems")
-                .font(.headline)
+                .font(.system(size: 18, weight: .bold, design: .monospaced))
                 .foregroundColor(.white)
                 .padding(.horizontal)
             
@@ -286,7 +285,7 @@ struct AchievementCard: View {
                     .frame(width: 50, height: 50)
                 
                 Image(systemName: achievement.icon)
-                    .font(.title2)
+                    .font(.system(size: 20, weight: .bold, design: .monospaced))
                     .foregroundColor(achievement.category.color)
             }
             
@@ -317,7 +316,7 @@ struct SettingsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
             Text("Settings")
-                .font(.headline)
+                .font(.system(size: 18, weight: .bold, design: .monospaced))
                 .foregroundColor(.white)
                 .padding(.horizontal)
             

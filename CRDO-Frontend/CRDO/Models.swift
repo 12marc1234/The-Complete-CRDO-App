@@ -458,20 +458,20 @@ struct StatCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.caption)
-                .fontWeight(.medium)
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
                 .foregroundColor(.gray)
                 .textCase(.uppercase)
                 .tracking(0.5)
             
             Text(value)
-                .font(.title2)
-                .fontWeight(.bold)
+                .font(.system(size: 20, weight: .bold, design: .monospaced))
                 .foregroundColor(color)
                 .shadow(color: color.opacity(0.3), radius: 2)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
             
             Text(subtitle)
-                .font(.caption2)
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
                 .foregroundColor(.gray.opacity(0.8))
         }
         .padding(.horizontal, 16)
@@ -494,31 +494,31 @@ struct CompactStatCard: View {
     let color: Color
     
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             Text(value)
-                .font(.title3)
-                .fontWeight(.bold)
+                .font(.system(size: 20, weight: .bold, design: .monospaced))
                 .foregroundColor(color)
                 .shadow(color: color.opacity(0.3), radius: 1)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
             
             Text(title)
-                .font(.caption)
-                .fontWeight(.medium)
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundColor(.gray.opacity(0.8))
                 .textCase(.uppercase)
-                .tracking(0.3)
+                .tracking(0.5)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(red: 0.1, green: 0.1, blue: 0.15))
-        .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(color.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(red: 0.08, green: 0.08, blue: 0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(color.opacity(0.3), lineWidth: 1.5)
+                )
         )
-        )
-        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+        .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 3)
     }
 }
 

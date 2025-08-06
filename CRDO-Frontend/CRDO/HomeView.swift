@@ -157,12 +157,11 @@ struct HomeView: View {
                             HStack {
                                 Image(systemName: "diamond.fill")
                                     .foregroundColor(.yellow)
-                                    .font(.title3)
+                                    .font(.system(size: 16, weight: .bold, design: .monospaced))
                                     .shadow(color: .yellow.opacity(0.5), radius: 4)
                                 
                                 Text("Gems Earned This Run:")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
+                                    .font(.system(size: 14, weight: .medium, design: .monospaced))
                                     .foregroundColor(.white)
                                 
                                 Spacer()
@@ -239,24 +238,11 @@ struct StreakSection: View {
         VStack(spacing: 20) {
             // Daily Progress Circle
             VStack(spacing: 15) {
-                HStack {
-                    Text("DAILY GOAL: 15 MIN")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    // Dev button to add 5 minutes
-                    Button("+5min") {
-                        gemsManager.addDailyProgress(seconds: 300) // 5 minutes = 300 seconds
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.2))
-                    .cornerRadius(8)
-                }
+                Text("DAILY GOAL: 15 MIN")
+                    .font(.system(size: 20, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
                 
                 // Progress Circle
                 ZStack {
@@ -305,7 +291,7 @@ struct StreakSection: View {
             VStack(spacing: 15) {
                 HStack {
                     Text("🔥 STREAKS")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
                         .foregroundColor(.gold)
                         .tracking(1)
                     
@@ -398,7 +384,7 @@ struct StreakCard: View {
                 .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: animation)
             
             Text("\(value)")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .monospaced))
                 .foregroundColor(color)
             
             VStack(spacing: 2) {
@@ -432,7 +418,7 @@ struct QuickStatsSection: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("QUICK STATS")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(.system(size: 14, weight: .bold, design: .monospaced))
                 .foregroundColor(.gold)
                 .tracking(1)
             
@@ -647,7 +633,7 @@ struct RunMapView: View {
                 }
                 
                 // Compact Stats overlay
-                VStack(spacing: 0) {
+                VStack(spacing: 8) {
                     Spacer()
                     
                     // Main stats row
@@ -681,7 +667,7 @@ struct RunMapView: View {
                         )
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 8)
                     
                     // Pace and Finish row
                     HStack(spacing: 16) {
@@ -719,7 +705,7 @@ struct RunMapView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, 15)
                 }
                 .background(
                     LinearGradient(
@@ -906,25 +892,23 @@ struct GemsSection: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Today's Earnings")
-                        .font(.caption)
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
                         .foregroundColor(.gray)
                     
-                    Text("+\(gemsManager.gemsEarnedToday)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.green)
+                                            Text("+\(gemsManager.gemsEarnedToday)")
+                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.green)
                 }
                 
                 Spacer()
                 
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Total Gems")
-                        .font(.caption)
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
                         .foregroundColor(.gray)
                     
                     Text("\(gemsManager.totalGems)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
                         .foregroundColor(.yellow)
                 }
             }
