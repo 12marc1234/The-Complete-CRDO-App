@@ -182,42 +182,44 @@ struct FriendsView: View {
     }
     
     private func generateMockData() {
-        // Generate mock friends with bios
-        friends = [
-            MockFriend(
-                name: "Sarah Johnson",
-                email: "sarah@example.com",
-                avatar: "person.circle.fill",
-                status: .online,
-                lastActive: Date(),
-                totalRuns: 45,
-                totalDistance: 125000,
-                averagePace: 280,
-                bio: "Marathon runner and fitness enthusiast. Love exploring new trails!"
-            ),
-            MockFriend(
-                name: "Mike Chen",
-                email: "mike@example.com",
-                avatar: "person.circle.fill",
-                status: .running,
-                lastActive: Date().addingTimeInterval(-1800),
-                totalRuns: 32,
-                totalDistance: 89000,
-                averagePace: 320,
-                bio: "Sprint specialist focusing on speed training and interval workouts."
-            ),
-            MockFriend(
-                name: "Emma Davis",
-                email: "emma@example.com",
-                avatar: "person.circle.fill",
-                status: .offline,
-                lastActive: Date().addingTimeInterval(-7200),
-                totalRuns: 28,
-                totalDistance: 67000,
-                averagePace: 350,
-                bio: "Casual runner who enjoys morning jogs and weekend long runs."
-            )
-        ]
+        // Only generate mock friends if the list is empty (first time)
+        if friends.isEmpty {
+            friends = [
+                MockFriend(
+                    name: "Sarah Johnson",
+                    email: "sarah@example.com",
+                    avatar: "person.circle.fill",
+                    status: .online,
+                    lastActive: Date(),
+                    totalRuns: 45,
+                    totalDistance: 125000,
+                    averagePace: 280,
+                    bio: "Marathon runner and fitness enthusiast. Love exploring new trails!"
+                ),
+                MockFriend(
+                    name: "Mike Chen",
+                    email: "mike@example.com",
+                    avatar: "person.circle.fill",
+                    status: .running,
+                    lastActive: Date().addingTimeInterval(-1800),
+                    totalRuns: 32,
+                    totalDistance: 89000,
+                    averagePace: 320,
+                    bio: "Sprint specialist focusing on speed training and interval workouts."
+                ),
+                MockFriend(
+                    name: "Emma Davis",
+                    email: "emma@example.com",
+                    avatar: "person.circle.fill",
+                    status: .offline,
+                    lastActive: Date().addingTimeInterval(-7200),
+                    totalRuns: 28,
+                    totalDistance: 67000,
+                    averagePace: 350,
+                    bio: "Casual runner who enjoys morning jogs and weekend long runs."
+                )
+            ]
+        }
         
         // Generate mock leaderboard data
         leaderboardData = [
@@ -278,7 +280,10 @@ struct FriendsTabView: View {
     @Binding var selectedFriend: MockFriend?
     @Binding var showingProfile: Bool
     let scrollOffset: CGFloat
-    @State private var currentFriends: [MockFriend]
+    // Computed property to always get the latest friends
+    private var currentFriends: [MockFriend] {
+        return friends
+    }
     
     init(friends: [MockFriend], friendRequests: [MockFriend], unitSystem: UnitSystem, showingFriendRequests: Binding<Bool>, selectedFriend: Binding<MockFriend?>, showingProfile: Binding<Bool>, scrollOffset: CGFloat) {
         self.friends = friends
@@ -288,7 +293,6 @@ struct FriendsTabView: View {
         self._selectedFriend = selectedFriend
         self._showingProfile = showingProfile
         self.scrollOffset = scrollOffset
-        self._currentFriends = State(initialValue: friends)
     }
     
     var body: some View {

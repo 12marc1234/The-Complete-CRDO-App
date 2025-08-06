@@ -87,12 +87,12 @@ class GemsManager: ObservableObject {
             dailyMinutesGoal = 15
         }
         
-        // Sync with UserPreferences if available
+        // Sync with UserPreferences if available (but don't override if we have saved data)
         let preferencesManager = UserPreferencesManager.shared
-        if preferencesManager.preferences.totalGems > 0 {
+        if totalGems == 0 && preferencesManager.preferences.totalGems > 0 {
             totalGems = preferencesManager.preferences.totalGems
         }
-        if preferencesManager.preferences.gemsEarnedToday > 0 {
+        if gemsEarnedToday == 0 && preferencesManager.preferences.gemsEarnedToday > 0 {
             gemsEarnedToday = preferencesManager.preferences.gemsEarnedToday
         }
         
@@ -113,6 +113,11 @@ class GemsManager: ObservableObject {
         UserDefaults.standard.set(lastRunDate, forKey: prefix + "lastRunDate")
         UserDefaults.standard.set(dailySecondsCompleted, forKey: prefix + "dailySecondsCompleted")
         UserDefaults.standard.set(dailyMinutesGoal, forKey: prefix + "dailyMinutesGoal")
+        
+        // Also sync with UserPreferences
+        let preferencesManager = UserPreferencesManager.shared
+        preferencesManager.preferences.totalGems = totalGems
+        preferencesManager.preferences.gemsEarnedToday = gemsEarnedToday
         
         print("💾 GemsManager - Saved Data for user \(userId):")
         print("   Total Gems: \(totalGems)")

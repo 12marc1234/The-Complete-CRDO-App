@@ -23,6 +23,7 @@ struct RecentRunsView: View {
 
 struct WorkoutHistoryView: View {
     @ObservedObject private var workoutStore = WorkoutStore.shared
+    @ObservedObject private var preferencesManager = UserPreferencesManager.shared
     @StateObject private var runManager = RunManager()
     @Environment(\.dismiss) var dismiss
     @State private var showClearConfirmation = false
@@ -163,7 +164,7 @@ struct WorkoutHistoryView: View {
                     ScrollView {
                         LazyVStack(spacing: 16) {
                             ForEach(allWorkouts) { workout in
-                                ModernWorkoutCard(workout: workout) {
+                                ModernWorkoutCard(workout: workout, unitSystem: preferencesManager.preferences.unitSystem) {
                                     workoutStore.deleteWorkout(workout)
                                 } onMapTap: {
                                     print("Map tapped for workout: \(workout.id)")
@@ -252,6 +253,7 @@ struct SummaryStatCard: View {
 
 struct ModernWorkoutCard: View {
     let workout: Workout
+    let unitSystem: UnitSystem
     let onDelete: () -> Void
     let onMapTap: () -> Void
     
@@ -259,14 +261,14 @@ struct ModernWorkoutCard: View {
         VStack(spacing: 0) {
             // Header with date and category
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(formatDate(workout.date))
-                        .font(.system(size: 16, weight: .bold, design: .monospaced))
+                        .font(.system(size: 18, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                     
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         Image(systemName: workout.category.icon)
-                            .font(.system(size: 12))
+                            .font(.system(size: 14))
                             .foregroundColor(.blue)
                         Text(workout.category.rawValue)
                             .font(.system(size: 12, weight: .medium, design: .monospaced))
@@ -278,29 +280,29 @@ struct ModernWorkoutCard: View {
                 
                 Button(action: onDelete) {
                     Image(systemName: "trash")
-                        .font(.system(size: 14))
+                        .font(.system(size: 16))
                         .foregroundColor(.red)
-                        .padding(8)
-                        .background(Color.red.opacity(0.15))
-                        .cornerRadius(20)
+                        .padding(10)
+                        .background(Color.red.opacity(0.2))
+                        .cornerRadius(25)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 16)
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, 20)
             
             // Stats Grid
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
-            ], spacing: 16) {
-                ModernStatRow(label: "AVG SPEED", value: String(format: "%.1f mph", workout.averageSpeed), icon: "speedometer")
-                ModernStatRow(label: "PEAK SPEED", value: String(format: "%.1f mph", workout.peakSpeed), icon: "bolt.fill")
-                ModernStatRow(label: "DISTANCE", value: String(format: "%.2f mi", workout.distance), icon: "location.fill")
+            ], spacing: 20) {
+                ModernStatRow(label: "AVG SPEED", value: UnitConverter.formatSpeed(workout.averageSpeed, unitSystem: unitSystem), icon: "speedometer")
+                ModernStatRow(label: "PEAK SPEED", value: UnitConverter.formatSpeed(workout.peakSpeed, unitSystem: unitSystem), icon: "bolt.fill")
+                ModernStatRow(label: "DISTANCE", value: UnitConverter.formatDistance(workout.distance * 1609.34, unitSystem: unitSystem), icon: "location.fill")
                 ModernStatRow(label: "TIME", value: formatTime(workout.time), icon: "clock.fill")
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 20)
             
             // Route Preview
             if !workout.route.isEmpty {
@@ -344,14 +346,18 @@ struct ModernWorkoutCard: View {
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
+            LinearGradient(
+                gradient: Gradient(colors: [Color.black.opacity(0.4), Color.black.opacity(0.2)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         )
-        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+        .cornerRadius(20)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
     }
     
     private func formatDate(_ date: Date) -> String {
@@ -375,27 +381,33 @@ struct ModernStatRow: View {
     let icon: String
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(.system(size: 16))
                 .foregroundColor(.blue)
-                .frame(width: 20)
+                .frame(width: 24)
             
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(label)
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundColor(.gray)
                 Text(value)
-                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    .font(.system(size: 16, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
             }
             
             Spacer()
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(Color.white.opacity(0.05))
-        .cornerRadius(8)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .background(Color.white.opacity(0.08))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+        )
     }
 }
 
@@ -460,6 +472,7 @@ struct MapRoutePreview: UIViewRepresentable {
 
 struct FullScreenMapView: View {
     let workout: Workout
+    @ObservedObject private var preferencesManager = UserPreferencesManager.shared
     @Environment(\.dismiss) var dismiss
     @State private var region: MKCoordinateRegion = MKCoordinateRegion()
     @State private var replayIndex: Int = 1 // Revert to Int for working replay
@@ -497,11 +510,11 @@ struct FullScreenMapView: View {
             // Compact stats box (top right)
             VStack(alignment: .trailing, spacing: 6) {
                 HStack(spacing: 10) {
-                    StatIconText(icon: "speedometer", text: String(format: "%.1f mph", workout.averageSpeed))
-                    StatIconText(icon: "bolt.fill", text: String(format: "%.1f mph", workout.peakSpeed))
+                    StatIconText(icon: "speedometer", text: UnitConverter.formatSpeed(workout.averageSpeed, unitSystem: preferencesManager.preferences.unitSystem))
+                    StatIconText(icon: "bolt.fill", text: UnitConverter.formatSpeed(workout.peakSpeed, unitSystem: preferencesManager.preferences.unitSystem))
                 }
                 HStack(spacing: 10) {
-                    StatIconText(icon: "location.fill", text: String(format: "%.2f mi", workout.distance))
+                    StatIconText(icon: "location.fill", text: UnitConverter.formatDistance(workout.distance * 1609.34, unitSystem: preferencesManager.preferences.unitSystem))
                     StatIconText(icon: "clock.fill", text: formatTime(workout.time))
                 }
             }
