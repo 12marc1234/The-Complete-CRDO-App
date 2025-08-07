@@ -174,18 +174,9 @@ class RunManager: NSObject, ObservableObject {
         updatedRun.isActive = false
         updatedRun.route = route
         
-        // Award gems for this run
-        print("🏃‍♂️ Finishing Run:")
-        print("   Final Distance: \(finalDistance) meters (\(finalDistanceInMiles) miles)")
-        print("   Final Average Speed: \(finalAverageSpeed) mph")
-        print("   Final Average Pace: \(finalAveragePace) min/mi")
-        print("   Final Duration: \(finalDuration) seconds")
-        
-        GemsManager.shared.awardGemsForRun(
-            distance: finalDistance,
-            averageSpeed: finalAverageSpeed,
-            duration: finalDuration
-        )
+        // Award gems for the run
+        let gemsEarned = GemsManager.shared.calculateGemsForRun(distance: finalDistance, averageSpeed: averageSpeed)
+        GemsManager.shared.awardGemsForRun(gemsEarned)
         
         // Check for potential achievements and send notifications
         checkForAchievements(distance: finalDistance, averageSpeed: finalAverageSpeed, duration: finalDuration)
@@ -219,11 +210,12 @@ class RunManager: NSObject, ObservableObject {
         
         // Convert RunSession to Workout
         let workout = Workout(
-            date: run.startTime,
+            startTime: run.startTime,
+            endTime: run.startTime.addingTimeInterval(run.duration),
+            distance: run.distance, // Keep in meters
+            duration: run.duration,
             averageSpeed: run.averagePace > 0 ? 60 / run.averagePace : 0, // Convert pace to speed
             peakSpeed: run.averagePace > 0 ? 60 / run.averagePace : 0, // Use average as peak for now
-            distance: run.distance / 1609.34, // Convert meters to miles
-            time: run.duration,
             route: run.route.map { Coordinate($0) }, // Convert CLLocationCoordinate2D to Coordinate
             category: .running
         )

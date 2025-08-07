@@ -65,97 +65,7 @@ class AuthenticationTracker: ObservableObject {
         NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
     }
     
-    private func clearAllUserData() {
-        // Clear all user-specific data
-        let userDefaults = UserDefaults.standard
-        
-        // Clear ALL user data (for any user)
-        let allKeys = userDefaults.dictionaryRepresentation().keys
-        for key in allKeys {
-            if key.hasPrefix("gems_") || 
-               key.hasPrefix("workouts_") || 
-               key.hasPrefix("recentRuns_") ||
-               key.hasPrefix("friends_") ||
-               key.hasPrefix("achievements_") ||
-               key.hasPrefix("userPreferences_") ||
-               key.hasPrefix("userStats_") ||
-               key.hasPrefix("streak_") ||
-               key.hasPrefix("city_") ||
-               key.hasPrefix("dailyProgress_") ||
-               key.hasPrefix("profile_") ||
-               key.hasPrefix("bio_") ||
-               key.hasPrefix("description_") ||
-               key.hasPrefix("buildings_") ||
-               key.hasPrefix("cityBuildings_") ||
-               key.hasPrefix("userProfile_") ||
-               key.hasPrefix("userBio_") ||
-               key.hasPrefix("userDescription_") {
-                userDefaults.removeObject(forKey: key)
-                print("🗑️ Removed key: \(key)")
-            }
-        }
-        
-        // Clear specific keys that might not follow the pattern
-        userDefaults.removeObject(forKey: "userData")
-        userDefaults.removeObject(forKey: "userPreferences")
-        userDefaults.removeObject(forKey: "unlockedAchievements")
-        userDefaults.removeObject(forKey: "totalGems")
-        userDefaults.removeObject(forKey: "gemsEarnedToday")
-        userDefaults.removeObject(forKey: "dailySecondsCompleted")
-        userDefaults.removeObject(forKey: "dailyMinutesGoal")
-        userDefaults.removeObject(forKey: "lastRunDate")
-        userDefaults.removeObject(forKey: "currentStreak")
-        userDefaults.removeObject(forKey: "longestStreak")
-        userDefaults.removeObject(forKey: "totalDistance")
-        userDefaults.removeObject(forKey: "totalTime")
-        userDefaults.removeObject(forKey: "averagePace")
-        userDefaults.removeObject(forKey: "bestDistance")
-        userDefaults.removeObject(forKey: "longestDistance")
-        
-        // Clear city and profile specific data
-        userDefaults.removeObject(forKey: "cityBuildings")
-        userDefaults.removeObject(forKey: "cityLevel")
-        userDefaults.removeObject(forKey: "cityProgress")
-        userDefaults.removeObject(forKey: "userBio")
-        userDefaults.removeObject(forKey: "userDescription")
-        userDefaults.removeObject(forKey: "userProfile")
-        userDefaults.removeObject(forKey: "profileBio")
-        userDefaults.removeObject(forKey: "profileDescription")
-        userDefaults.removeObject(forKey: "buildings")
-        userDefaults.removeObject(forKey: "cityData")
-        userDefaults.removeObject(forKey: "profileData")
-        
-        // Reset all managers to their initial state
-        GemsManager.shared.totalGems = 0
-        GemsManager.shared.gemsEarnedToday = 0
-        GemsManager.shared.dailySecondsCompleted = 0
-        GemsManager.shared.saveGemsData()
-        
-        WorkoutStore.shared.workouts.removeAll()
-        // Note: saveWorkouts() is private, so we can't call it directly
-        // The data will be saved when the app next accesses WorkoutStore
-        
-        // Clear RunManager data
-        let runManager = RunManager()
-        runManager.recentRuns.removeAll()
-        runManager.saveRecentRuns()
-        
-        // Clear AchievementManager data
-        let achievementManager = AchievementManager.shared
-        achievementManager.achievements.removeAll()
-        
-        // Clear CityManager data
-        let cityManager = CityManager.shared
-        cityManager.buildings.removeAll()
-        // Note: CityManager saves data automatically, so clearing the buildings array should reset it
-        
-        print("🧹 COMPLETELY cleared all user data")
-    }
-    
     func exitGuestMode() {
-        // Clear all guest data
-        clearAllUserData()
-        
         isGuestMode = false
         UserDefaults.standard.set(false, forKey: "isGuestMode")
         UserDefaults.standard.removeObject(forKey: "guestUserId")
@@ -167,47 +77,25 @@ class AuthenticationTracker: ObservableObject {
     }
     
     func signUp(email: String, password: String, firstName: String, lastName: String) {
-        isLoading = true
-        errorMessage = nil
-        
-        NetworkService.shared.signup(email: email, password: password, firstName: firstName, lastName: lastName)
-            .sink(
-                receiveCompletion: { completion in
-                    DispatchQueue.main.async {
-                        self.isLoading = false
-                        if case .failure(let error) = completion {
-                            if let authError = error as? AuthError {
-                                self.errorMessage = authError.errorDescription
-                            } else {
-                                self.errorMessage = error.localizedDescription
-                            }
-                        }
-                    }
-                },
-                receiveValue: { response in
-                    DispatchQueue.main.async {
-                        print("🔐 Signup successful - setting authentication state")
-                        self.isAuthenticated = true
-                        self.isGuestMode = false
-                        self.errorMessage = nil
-                        
-                        // Save authentication data
-                        UserDefaults.standard.set(true, forKey: "isAuthenticated")
-                        UserDefaults.standard.set(false, forKey: "isGuestMode")
-                        print("🔐 Saved authentication data to UserDefaults")
-                        
-                        // Set current user from response
-                        if let user = response.user {
-                            self.currentUser = user
-                            print("🔐 Set current user: \(user.email)")
-                            
-                            if let userData = try? JSONEncoder().encode(user) {
-                                UserDefaults.standard.set(userData, forKey: "userData")
-                                print("🔐 Saved user data to UserDefaults")
-                            }
-                        } else {
-                            print("🔐 Warning: No user in response")
-                        }
+        Task {
+            await SupabaseManager.shared.signUp(email: email, password: password, firstName: firstName, lastName: lastName)
+            
+            DispatchQueue.main.async {
+                self.isLoading = SupabaseManager.shared.isLoading
+                
+                if SupabaseManager.shared.isAuthenticated {
+                    self.isAuthenticated = true
+                    self.isGuestMode = false
+                    self.errorMessage = nil
+                    
+                    // Save authentication data
+                    UserDefaults.standard.set(true, forKey: "isAuthenticated")
+                    UserDefaults.standard.set(false, forKey: "isGuestMode")
+                    
+                    // Set current user
+                    if let user = SupabaseManager.shared.currentUser {
+                        self.currentUser = user
+                        DataManager.shared.setUserId(user.id)
                         
                         // For signup, always clear data since it's a new user
                         print("🆕 New user signup - clearing any existing data")
@@ -217,9 +105,11 @@ class AuthenticationTracker: ObservableObject {
                         // Notify other components that user changed
                         NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
                     }
+                } else {
+                    self.errorMessage = SupabaseManager.shared.errorMessage
                 }
-            )
-            .store(in: &cancellables)
+            }
+        }
     }
     
     func login(email: String, password: String) {
@@ -259,27 +149,26 @@ class AuthenticationTracker: ObservableObject {
                             
                             if let userData = try? JSONEncoder().encode(user) {
                                 UserDefaults.standard.set(userData, forKey: "userData")
-                                print("🔐 Saved user data to UserDefaults")
                             }
-                        } else {
-                            print("🔐 Warning: No user in response")
+                            
+                            // Set user ID for data isolation
+                            DataManager.shared.setUserId(user.id)
+                            
+                            // Check if this is a different user than before
+                            if let previousUser = self.currentUser,
+                               previousUser.id != user.id {
+                                print("🔄 Switching users - clearing previous user data")
+                                self.clearAllUserData()
+                            } else {
+                                print("🔐 Same user login - preserving data")
+                            }
+                            
+                            // Reload data for the current user
+                            self.reloadLocalData()
+                            
+                            // Notify other components that user changed
+                            NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
                         }
-                        
-                        // Only clear data if switching from a different user
-                        if let previousUser = self.currentUser, 
-                           let newUser = response.user,
-                           previousUser.id != newUser.id {
-                            print("🔄 Switching users - clearing previous user data")
-                            self.clearAllUserData()
-                        } else {
-                            print("🔐 Same user login - preserving data")
-                        }
-                        
-                        // Reload data for the current user
-                        self.reloadLocalData()
-                        
-                        // Notify other components that user changed
-                        NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
                     }
                 }
             )
@@ -287,23 +176,29 @@ class AuthenticationTracker: ObservableObject {
     }
     
     func signOut() {
-        isAuthenticated = false
-        currentUser = nil
-        
-        // Clear all user data
-        clearAllUserData()
-        
-        // Clear authentication data
-        UserDefaults.standard.set(false, forKey: "isAuthenticated")
-        UserDefaults.standard.removeObject(forKey: "userData")
-        
-        print("🔐 User signed out and all data cleared")
-        
-        // Notify other components that user changed
-        NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
+        Task {
+            await SupabaseManager.shared.signOut()
+            
+            DispatchQueue.main.async {
+                self.isAuthenticated = false
+                self.currentUser = nil
+                
+                // Clear all user data
+                self.clearAllUserData()
+                
+                // Clear authentication data
+                UserDefaults.standard.set(false, forKey: "isAuthenticated")
+                UserDefaults.standard.removeObject(forKey: "userData")
+                
+                print("🔐 User signed out and all data cleared")
+                
+                // Notify other components that user changed
+                NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
+            }
+        }
     }
     
-        private func clearLocalData() {
+    private func clearLocalData() {
         // Clear RunManager data
         let runManager = RunManager()
         runManager.recentRuns.removeAll()
@@ -370,10 +265,56 @@ class AuthenticationTracker: ObservableObject {
         let gemsManager = GemsManager.shared
         gemsManager.loadGemsData()
         
-        // Don't automatically sync backend data - let user do it manually
-        // This prevents mixing data from different users
+        // Reload DataManager data for the new user
+        DataManager.shared.loadUserData()
         
-        print("🔄 Reloaded local data for new user")
+        // Reload AchievementManager data for the new user
+        let achievementManager = AchievementManager.shared
+        achievementManager.calculateAchievements()
+        
+        print("🔄 Reloaded local data for user switch")
+    }
+    
+    private func clearAllUserData() {
+        // Clear all user-specific data
+        let userDefaults = UserDefaults.standard
+        
+        // Clear ALL user data (for any user)
+        let allKeys = userDefaults.dictionaryRepresentation().keys
+        for key in allKeys {
+            if key.hasPrefix("gems_") || 
+               key.hasPrefix("workouts_") || 
+               key.hasPrefix("recentRuns_") ||
+               key.hasPrefix("friends_") ||
+               key.hasPrefix("achievements_") ||
+               key.hasPrefix("userPreferences_") ||
+               key.hasPrefix("userStats_") ||
+               key.hasPrefix("streak_") ||
+               key.hasPrefix("city_") ||
+               key.hasPrefix("dailyProgress_") ||
+               key.hasPrefix("profile_") ||
+               key.hasPrefix("bio_") ||
+               key.hasPrefix("description_") ||
+               key.hasPrefix("buildings_") ||
+               key.hasPrefix("cityBuildings_") ||
+               key.hasPrefix("userProfile_") ||
+               key.hasPrefix("userBio_") ||
+               key.hasPrefix("userDescription_") {
+                userDefaults.removeObject(forKey: key)
+                print("🗑️ Removed key: \(key)")
+            }
+        }
+        
+        // Clear specific keys that might not follow the pattern
+        userDefaults.removeObject(forKey: "userData")
+        userDefaults.removeObject(forKey: "userPreferences")
+        userDefaults.removeObject(forKey: "unlockedAchievements")
+        userDefaults.removeObject(forKey: "userBio")
+        userDefaults.removeObject(forKey: "userDescription")
+        userDefaults.removeObject(forKey: "cityBuildings")
+        userDefaults.removeObject(forKey: "userProfile")
+        
+        print("🗑️ Cleared all user-specific data")
     }
 }
 
@@ -384,286 +325,185 @@ struct AuthenticationView: View {
     @State private var isSignUp = false
     @State private var email = ""
     @State private var password = ""
-    @State private var confirmPassword = ""
     @State private var firstName = ""
     @State private var lastName = ""
-    @State private var showingPassword = false
-    @State private var showingConfirmPassword = false
-    
-    init(authTracker: AuthenticationTracker) {
-        self.authTracker = authTracker
-        print("🔐 AuthenticationView initialized")
-    }
-    @State private var rememberMe = false
-    @State private var isLoading = false
-    @State private var errorMessage = ""
-    
-    private let dataManager = DataManager.shared
+    @State private var showPassword = false
     
     var body: some View {
-        GeometryReader { geometry in
-                    ZStack {
-            // Enhanced background gradient
-            LinearGradient.backgroundGradient
+        NavigationView {
+            ZStack {
+                // Background gradient
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 0.1, green: 0.1, blue: 0.2),
+                        Color(red: 0.05, green: 0.05, blue: 0.15)
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
                 .ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 30) {
                         // Logo and title
                         VStack(spacing: 20) {
-                            Image(systemName: "figure.run")
+                            Image(systemName: "figure.run.circle.fill")
                                 .font(.system(size: 80))
-                                .foregroundColor(.gold)
+                                .foregroundColor(.blue)
+                                .shadow(color: .blue.opacity(0.5), radius: 10)
                             
                             Text("CRDO")
-                                .font(.largeTitle)
-                                .fontWeight(.bold)
+                                .font(.system(size: 48, weight: .bold, design: .monospaced))
                                 .foregroundColor(.white)
+                                .shadow(color: .white.opacity(0.3), radius: 5)
                             
-                            Text(isSignUp ? "Create your account" : "Welcome back")
-                                .font(.title2)
+                            Text("Track your runs, build your city")
+                                .font(.system(size: 18, weight: .medium, design: .monospaced))
                                 .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
                         }
                         .padding(.top, 50)
                         
-                        // Form fields
+                        // Authentication form
                         VStack(spacing: 20) {
-                            // Email Field
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Email")
-                                    .font(.caption)
-                                    .foregroundColor(.gold)
-                                    .fontWeight(.semibold)
+                            // Toggle between sign up and login
+                            Picker("Authentication Mode", selection: $isSignUp) {
+                                Text("Sign In").tag(false)
+                                Text("Sign Up").tag(true)
+                            }
+                            .pickerStyle(SegmentedPickerStyle())
+                            .padding(.horizontal)
+                            
+                            VStack(spacing: 15) {
+                                if isSignUp {
+                                    // First Name and Last Name fields for signup
+                                    HStack(spacing: 10) {
+                                        TextField("First Name", text: $firstName)
+                                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                                            .autocapitalization(.words)
+                                        
+                                        TextField("Last Name", text: $lastName)
+                                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                                            .autocapitalization(.words)
+                                    }
+                                }
                                 
-                                TextField("Enter your email", text: $email)
-                                    .textFieldStyle(AuthTextFieldStyle())
+                                // Email field
+                                TextField("Email", text: $email)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
                                     .keyboardType(.emailAddress)
                                     .autocapitalization(.none)
-                            }
-                            
-                            // First Name Field (only for sign up)
-                            if isSignUp {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("First Name")
-                                        .font(.caption)
-                                        .foregroundColor(.gold)
-                                        .fontWeight(.semibold)
-                                    
-                                    TextField("Enter your first name", text: $firstName)
-                                        .textFieldStyle(AuthTextFieldStyle())
-                                        .autocapitalization(.words)
-                                }
-                            }
-                            
-                            // Last Name Field (only for sign up)
-                            if isSignUp {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Last Name")
-                                        .font(.caption)
-                                        .foregroundColor(.gold)
-                                        .fontWeight(.semibold)
-                                    
-                                    TextField("Enter your last name", text: $lastName)
-                                        .textFieldStyle(AuthTextFieldStyle())
-                                        .autocapitalization(.words)
-                                }
-                            }
-                            
-                            // Password Field
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Password")
-                                    .font(.caption)
-                                    .foregroundColor(.gold)
-                                    .fontWeight(.semibold)
+                                    .autocorrectionDisabled()
                                 
+                                // Password field
                                 HStack {
-                                    if showingPassword {
-                                        TextField("Enter your password", text: $password)
+                                    if showPassword {
+                                        TextField("Password", text: $password)
+                                            .textFieldStyle(RoundedBorderTextFieldStyle())
                                     } else {
-                                        SecureField("Enter your password", text: $password)
+                                        SecureField("Password", text: $password)
+                                            .textFieldStyle(RoundedBorderTextFieldStyle())
                                     }
                                     
                                     Button(action: {
-                                        showingPassword.toggle()
+                                        showPassword.toggle()
                                     }) {
-                                        Image(systemName: showingPassword ? "eye.slash" : "eye")
+                                        Image(systemName: showPassword ? "eye.slash" : "eye")
                                             .foregroundColor(.gray)
                                     }
                                 }
-                                .textFieldStyle(AuthTextFieldStyle())
-                            }
-                            
-                            // Confirm Password Field (only for sign up)
-                            if isSignUp {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Confirm Password")
-                                        .font(.caption)
-                                        .foregroundColor(.gold)
-                                        .fontWeight(.semibold)
-                                    
+                                
+                                // Error message
+                                if let errorMessage = authTracker.errorMessage {
+                                    Text(errorMessage)
+                                        .foregroundColor(.red)
+                                        .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                }
+                                
+                                // Action button
+                                Button(action: {
+                                    if isSignUp {
+                                        authTracker.signUp(email: email, password: password, firstName: firstName, lastName: lastName)
+                                    } else {
+                                        authTracker.login(email: email, password: password)
+                                    }
+                                }) {
                                     HStack {
-                                        if showingConfirmPassword {
-                                            TextField("Confirm your password", text: $confirmPassword)
+                                        if authTracker.isLoading {
+                                            ProgressView()
+                                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                                .scaleEffect(0.8)
                                         } else {
-                                            SecureField("Confirm your password", text: $confirmPassword)
+                                            Image(systemName: isSignUp ? "person.badge.plus" : "person.fill")
+                                                .font(.system(size: 16, weight: .semibold))
                                         }
                                         
-                                        Button(action: {
-                                            showingConfirmPassword.toggle()
-                                        }) {
-                                            Image(systemName: showingConfirmPassword ? "eye.slash" : "eye")
-                                                .foregroundColor(.gray)
-                                        }
+                                        Text(isSignUp ? "Create Account" : "Sign In")
+                                            .font(.system(size: 16, weight: .semibold, design: .monospaced))
                                     }
-                                    .textFieldStyle(AuthTextFieldStyle())
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [.blue, .blue.opacity(0.8)]),
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .cornerRadius(12)
+                                    .shadow(color: .blue.opacity(0.3), radius: 5, x: 0, y: 2)
                                 }
+                                .disabled(authTracker.isLoading)
+                                .padding(.horizontal)
                             }
-                            
-                            // Remember Me (only for login)
-                            if !isSignUp {
-                                HStack {
-                                    Toggle("Remember me", isOn: $rememberMe)
-                                        .toggleStyle(SwitchToggleStyle(tint: .gold))
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                    
-                                    Spacer()
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 30)
-                        
-                        // Error message
-                        if !errorMessage.isEmpty || authTracker.errorMessage != nil {
-                            Text(authTracker.errorMessage ?? errorMessage)
-                                .foregroundColor(.red)
-                                .font(.caption)
-                                .padding(.horizontal, 30)
-                        }
-                        
-                        // Action button
-                        Button(action: performAuthentication) {
-                            HStack {
-                                if authTracker.isLoading {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        .scaleEffect(0.8)
-                                } else {
-                                    Text(isSignUp ? "Sign Up" : "Sign In")
-                                        .fontWeight(.semibold)
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.gold)
-                            .cornerRadius(25)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .disabled(authTracker.isLoading)
-                        .padding(.horizontal, 30)
-                        
-                        // Continue as Guest button
-                        Button(action: {
-                            authTracker.enterGuestMode()
-                        }) {
-                            HStack {
-                                Image(systemName: "person.fill")
-                                Text("Continue as Guest")
-                                    .fontWeight(.semibold)
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.gray.opacity(0.3))
-                            .cornerRadius(25)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 25)
-                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color(red: 0.15, green: 0.15, blue: 0.25))
+                                    .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                             )
+                            .padding(.horizontal)
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        .padding(.horizontal, 30)
-                        .padding(.top, 10)
                         
-                        // Toggle between sign up and sign in
-                        HStack {
-                            Text(isSignUp ? "Already have an account?" : "Don't have an account?")
-                                .foregroundColor(.gray)
+                        // Guest mode button
+                        VStack(spacing: 15) {
+                            Divider()
+                                .background(Color.gray.opacity(0.3))
+                                .padding(.horizontal)
                             
                             Button(action: {
-                                isSignUp.toggle()
-                                email = ""
-                                password = ""
-                                confirmPassword = ""
-                                firstName = ""
-                                lastName = ""
-                                rememberMe = false
-                                errorMessage = ""
+                                authTracker.enterGuestMode()
                             }) {
-                                Text(isSignUp ? "Sign In" : "Sign Up")
-                                    .foregroundColor(.gold)
-                                    .fontWeight(.semibold)
+                                HStack {
+                                    Image(systemName: "person.crop.circle")
+                                        .font(.system(size: 16, weight: .semibold))
+                                    
+                                    Text("Continue as Guest")
+                                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.gray.opacity(0.3))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                                )
                             }
+                            .padding(.horizontal)
                         }
-                        .font(.caption)
-                        
-                        Spacer()
                     }
-                    .frame(minHeight: geometry.size.height)
+                    .padding(.bottom, 50)
                 }
             }
         }
-    }
-    
-    private func performAuthentication() {
-        guard !email.isEmpty && !password.isEmpty else {
-            errorMessage = "Please fill in all fields"
-            return
-        }
-        
-        if isSignUp {
-            guard !firstName.isEmpty && !lastName.isEmpty else {
-                errorMessage = "Please fill in your first and last name"
-                return
-            }
-            
-            guard password == confirmPassword else {
-                errorMessage = "Passwords don't match"
-                return
-            }
-            
-            guard password.count >= 6 else {
-                errorMessage = "Password must be at least 6 characters"
-                return
-            }
-        }
-        
-        // Don't set isLoading here, let the AuthenticationTracker handle it
-        errorMessage = ""
-        
-        if isSignUp {
-            authTracker.signUp(email: email, password: password, firstName: firstName, lastName: lastName)
-        } else {
-            // Handle login using AuthenticationTracker
-            authTracker.login(email: email, password: password)
-        }
-    }
-}
-
-// MARK: - Custom Text Field Style
-
-struct AuthTextFieldStyle: TextFieldStyle {
-    func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration
-            .padding()
-            .background(Color.black.opacity(0.3))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-            )
-            .foregroundColor(.white)
+        .navigationViewStyle(StackNavigationViewStyle())
     }
 }
 

@@ -29,38 +29,15 @@ struct WorkoutHistoryView: View {
     @State private var showClearConfirmation = false
     @State private var clearText = ""
     @State private var selectedWorkout: Workout? // Only this state is needed for sheet
-    @State private var refreshTrigger = false // Force refresh trigger
     
     // Combine workouts from both sources
     private var allWorkouts: [Workout] {
-        let workouts = workoutStore.workouts
-        print("📱 WorkoutStore has \(workouts.count) workouts")
-        
-        // Convert existing RunSession data to Workout format (for reference only)
-        _ = runManager.recentRuns.map { run in
-            Workout(
-                date: run.startTime,
-                averageSpeed: run.averagePace > 0 ? 60 / run.averagePace : 0,
-                peakSpeed: run.averagePace > 0 ? 60 / run.averagePace : 0, // Use average as peak for now
-                distance: run.distance / 1609.34, // Convert meters to miles
-                time: run.duration,
-                route: run.route.map { Coordinate($0) },
-                category: .running
-            )
-        }
-        
-        print("📱 RunManager has \(runManager.recentRuns.count) recent runs")
-        
-        // ONLY use WorkoutStore workouts for display - this is the fix
-        let displayWorkouts = workouts.sorted { $0.date > $1.date }
-        print("📱 Total workouts to display: \(displayWorkouts.count)")
-        
-        // Print details of each workout
-        for (index, workout) in displayWorkouts.enumerated() {
-            print("📱 Workout \(index + 1): ID=\(workout.id), Date=\(workout.date), Distance=\(workout.distance)mi")
-        }
-        
-        return displayWorkouts
+        return workoutStore.workouts
+    }
+    
+    var displayWorkouts: [Workout] {
+        // Sort by start time (most recent first)
+        return allWorkouts.sorted { $0.startTime > $1.startTime }
     }
     
     var body: some View {
@@ -99,23 +76,23 @@ struct WorkoutHistoryView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                     
                     // Summary Stats
-                    if !allWorkouts.isEmpty {
+                    if !displayWorkouts.isEmpty {
                         HStack(spacing: 12) {
                             SummaryStatCard(
                                 title: "TOTAL",
-                                value: "\(allWorkouts.count)",
+                                value: "\(displayWorkouts.count)",
                                 icon: "figure.run",
                                 color: .blue
                             )
                             SummaryStatCard(
                                 title: "DISTANCE",
-                                value: String(format: "%.1f mi", allWorkouts.reduce(0) { $0 + $1.distance }),
+                                value: String(format: "%.1f mi", displayWorkouts.reduce(0) { $0 + $1.distance }),
                                 icon: "location.fill",
                                 color: .green
                             )
                             SummaryStatCard(
                                 title: "TIME",
-                                value: formatTotalTime(allWorkouts.reduce(0) { $0 + $1.time }),
+                                value: formatTotalTime(displayWorkouts.reduce(0) { $0 + $1.duration }),
                                 icon: "clock.fill",
                                 color: .orange
                             )
@@ -128,7 +105,7 @@ struct WorkoutHistoryView: View {
                 .padding(.bottom, 20)
                 
                 // Workouts List
-                if allWorkouts.isEmpty {
+                if displayWorkouts.isEmpty {
                     VStack(spacing: 20) {
                         Spacer()
                         Image(systemName: "figure.run")
@@ -147,7 +124,7 @@ struct WorkoutHistoryView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 16) {
-                            ForEach(allWorkouts) { workout in
+                            ForEach(displayWorkouts) { workout in
                                 ModernWorkoutCard(workout: workout, unitSystem: preferencesManager.preferences.unitSystem) {
                                     workoutStore.deleteWorkout(workout)
                                 } onMapTap: {
@@ -163,7 +140,6 @@ struct WorkoutHistoryView: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, 20)
                     }
-                    .id(refreshTrigger) // Force refresh when workouts are added
                 }
             }
             .navigationBarHidden(true)
@@ -188,17 +164,12 @@ struct WorkoutHistoryView: View {
         .onAppear {
             print("📱 WorkoutHistoryView appeared")
             print("📱 WorkoutStore workouts count: \(workoutStore.workouts.count)")
-            // Force refresh the WorkoutStore
-            workoutStore.objectWillChange.send()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("WorkoutAdded"))) { _ in
-            print("📱 Received WorkoutAdded notification - forcing UI refresh")
-            // Force UI refresh when workout is added
-            refreshTrigger.toggle()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                refreshTrigger.toggle()
+            // Force refresh of workout store
+            DispatchQueue.main.async {
+                workoutStore.objectWillChange.send()
             }
         }
+
     }
     
     private func formatTotalTime(_ timeInterval: TimeInterval) -> String {
@@ -246,7 +217,7 @@ struct ModernWorkoutCard: View {
             // Header with date and category
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(formatDate(workout.date))
+                    Text(formatDate(workout.startTime))
                         .font(.system(size: 18, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                     
@@ -283,7 +254,7 @@ struct ModernWorkoutCard: View {
                 ModernStatRow(label: "AVG SPEED", value: UnitConverter.formatSpeed(workout.averageSpeed, unitSystem: unitSystem), icon: "speedometer")
                 ModernStatRow(label: "PEAK SPEED", value: UnitConverter.formatSpeed(workout.peakSpeed, unitSystem: unitSystem), icon: "bolt.fill")
                 ModernStatRow(label: "DISTANCE", value: UnitConverter.formatDistance(workout.distance * 1609.34, unitSystem: unitSystem), icon: "location.fill")
-                ModernStatRow(label: "TIME", value: formatTime(workout.time), icon: "clock.fill")
+                ModernStatRow(label: "TIME", value: formatTime(workout.duration), icon: "clock.fill")
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 20)
@@ -499,7 +470,7 @@ struct FullScreenMapView: View {
                 }
                 HStack(spacing: 10) {
                     StatIconText(icon: "location.fill", text: UnitConverter.formatDistance(workout.distance * 1609.34, unitSystem: preferencesManager.preferences.unitSystem))
-                    StatIconText(icon: "clock.fill", text: formatTime(workout.time))
+                    StatIconText(icon: "clock.fill", text: formatTime(workout.duration))
                 }
             }
             .padding(10)
@@ -617,13 +588,13 @@ struct FullScreenMapView: View {
     // Add computed properties for timer display
     private var replayElapsedTimeString: String {
         guard workout.route.count > 1 else { return "0:00" }
-        let totalTime = workout.time
+        let totalTime = workout.duration
         let percent = Double(replayIndex - 1) / Double(workout.route.count - 1)
         let elapsed = totalTime * percent
         return formatTimeShort(elapsed)
     }
     private var totalElapsedTimeString: String {
-        formatTimeShort(workout.time)
+        formatTimeShort(workout.duration)
     }
     private func formatTimeShort(_ timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60

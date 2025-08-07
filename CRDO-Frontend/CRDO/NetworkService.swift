@@ -122,7 +122,9 @@ enum APIEndpoint {
 class NetworkService: ObservableObject {
     static let shared = NetworkService()
     
-    private let baseURL = BackendConfig.currentEnvironment.baseURL
+    // MARK: - Properties
+    
+    private let baseURL = BackendConfig.baseURL
     private let session = URLSession.shared
     private var cancellables = Set<AnyCancellable>()
     
@@ -148,66 +150,7 @@ class NetworkService: ObservableObject {
                 .eraseToAnyPublisher()
         }
         
-        // Check if user already exists
-        let mockUsers = MockUserDatabase.shared
-        
-        if mockUsers.userExists(email: email) {
-            print("❌ Signup failed: Email already exists: \(email)")
-            return Fail(error: AuthError.emailAlreadyExists)
-                .eraseToAnyPublisher()
-        }
-        
-        // Create new user
-        let newUser = MockUser(
-            id: "user-\(UUID().uuidString)",
-            email: email,
-            password: password,
-            firstName: firstName,
-            lastName: lastName,
-            fullName: "\(firstName) \(lastName)"
-        )
-        
-        // Add to database
-        print("🔐 Adding new user to database: \(newUser.email)")
-        mockUsers.addUser(newUser)
-        print("🔐 User added successfully. Total users in database: \(mockUsers.getUserCount())")
-        
-        // Create user object for response
-        let user = User(
-            id: newUser.id,
-            email: newUser.email,
-            firstName: newUser.firstName,
-            lastName: newUser.lastName,
-            fullName: newUser.fullName
-        )
-        
-        let mockSession = Session(
-            access_token: "mock-token-\(UUID().uuidString)",
-            refresh_token: "mock-refresh-\(UUID().uuidString)",
-            token_type: "Bearer",
-            expires_in: 3600,
-            expires_at: Int(Date().timeIntervalSince1970) + 3600,
-            user: SessionUser(
-                id: newUser.id,
-                email: newUser.email,
-                firstName: newUser.firstName,
-                lastName: newUser.lastName,
-                fullName: newUser.fullName
-            )
-        )
-        
-        let mockResponse = AuthResponse(
-            message: "Signup successful",
-            user: user,
-            session: mockSession
-        )
-        
-        print("🔐 Signup successful for: \(email)")
-        return Just(mockResponse)
-            .setFailureType(to: Error.self)
-            .eraseToAnyPublisher()
-        
-        // Original network request (commented out for now)
+        // Make real network request to backend
         let endpoint = APIEndpoint.signup(email: email, password: password, firstName: firstName, lastName: lastName)
         return makeRequest(endpoint: endpoint)
             .decode(type: AuthResponse.self, decoder: JSONDecoder())
@@ -215,11 +158,8 @@ class NetworkService: ObservableObject {
     }
     
     func login(email: String, password: String) -> AnyPublisher<AuthResponse, Error> {
-        // Clean the email input (remove whitespace)
-        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        
         // Validate email format
-        guard cleanEmail.contains("@") && cleanEmail.contains(".") else {
+        guard email.contains("@") && email.contains(".") else {
             return Fail(error: AuthError.invalidEmail)
                 .eraseToAnyPublisher()
         }
@@ -230,104 +170,9 @@ class NetworkService: ObservableObject {
                 .eraseToAnyPublisher()
         }
         
-        // Check if user exists in mock database
-        let mockUsers = MockUserDatabase.shared
-        
-        // Debug: Check what's in UserDefaults and memory
-        mockUsers.debugUserDefaults()
-        
-        if let existingUser = mockUsers.getUser(email: cleanEmail) {
-            // User exists, check password
-            if existingUser.password == password {
-                // Password matches, create session
-                let user = User(
-                    id: existingUser.id,
-                    email: existingUser.email,
-                    firstName: existingUser.firstName,
-                    lastName: existingUser.lastName,
-                    fullName: existingUser.fullName
-                )
-                
-                let mockSession = Session(
-                    access_token: "mock-token-\(UUID().uuidString)",
-                    refresh_token: "mock-refresh-\(UUID().uuidString)",
-                    token_type: "Bearer",
-                    expires_in: 3600,
-                    expires_at: Int(Date().timeIntervalSince1970) + 3600,
-                    user: SessionUser(
-                        id: existingUser.id,
-                        email: existingUser.email,
-                        firstName: existingUser.firstName,
-                        lastName: existingUser.lastName,
-                        fullName: existingUser.fullName
-                    )
-                )
-                
-                let mockResponse = AuthResponse(
-                    message: "Login successful",
-                    user: user,
-                    session: mockSession
-                )
-                
-                print("🔐 Login successful for: \(email)")
-                return Just(mockResponse)
-                    .setFailureType(to: Error.self)
-                    .eraseToAnyPublisher()
-            } else {
-                // Wrong password
-                print("❌ Login failed: Wrong password for \(email)")
-                return Fail(error: AuthError.wrongPassword)
-                    .eraseToAnyPublisher()
-            }
-        } else {
-            // User doesn't exist
-            print("❌ Login failed: User not found for \(email)")
-            return Fail(error: AuthError.userNotFound)
-                .eraseToAnyPublisher()
-        }
-        
-        // Original network request (commented out for now)
+        // Make real network request to backend
         let endpoint = APIEndpoint.login(email: email, password: password)
         return makeRequest(endpoint: endpoint)
-            .handleEvents(
-                receiveOutput: { data in
-                    print("🔍 Raw login response data: \(String(data: data, encoding: .utf8) ?? "Unable to decode")")
-                },
-                receiveCompletion: { completion in
-                    if case .failure(let error) = completion {
-                        print("❌ Login error: \(error)")
-                        
-                        // Check for specific network errors
-                        if let urlError = error as? URLError {
-                            switch urlError.code {
-                            case .cannotConnectToHost:
-                                print("❌ Cannot connect to backend server. Please check if the server is running.")
-                            case .timedOut:
-                                print("❌ Connection timed out. Please check your network connection.")
-                            case .notConnectedToInternet:
-                                print("❌ No internet connection. Please check your network.")
-                            default:
-                                print("❌ Network error: \(urlError.localizedDescription)")
-                            }
-                        }
-                        
-                        if let decodingError = error as? DecodingError {
-                            switch decodingError {
-                            case .keyNotFound(let key, let context):
-                                print("❌ Missing key: \(key.stringValue) at path: \(context.codingPath)")
-                            case .typeMismatch(let type, let context):
-                                print("❌ Type mismatch: expected \(type) at path: \(context.codingPath)")
-                            case .valueNotFound(let type, let context):
-                                print("❌ Value not found: expected \(type) at path: \(context.codingPath)")
-                            case .dataCorrupted(let context):
-                                print("❌ Data corrupted at path: \(context.codingPath)")
-                            @unknown default:
-                                print("❌ Unknown decoding error")
-                            }
-                        }
-                    }
-                }
-            )
             .decode(type: AuthResponse.self, decoder: JSONDecoder())
             .eraseToAnyPublisher()
     }
@@ -340,11 +185,9 @@ class NetworkService: ObservableObject {
     }
     
     func deleteAccount(password: String) -> AnyPublisher<DeleteAccountResponse, Error> {
+        // Make real network request to backend
         let endpoint = APIEndpoint.deleteAccount(password: password)
         return makeRequest(endpoint: endpoint)
-            .handleEvents(receiveOutput: { data in
-                print("🔍 Delete account raw response: \(String(data: data, encoding: .utf8) ?? "nil")")
-            })
             .decode(type: DeleteAccountResponse.self, decoder: JSONDecoder())
             .eraseToAnyPublisher()
     }

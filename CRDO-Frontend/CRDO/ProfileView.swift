@@ -342,7 +342,7 @@ struct SettingsSection: View {
                     value: preferencesManager.preferences.unitSystem == .imperial ? "Imperial" : "Metric"
                 ) {
                     preferencesManager.preferences.unitSystem = preferencesManager.preferences.unitSystem == .imperial ? .metric : .imperial
-                    // Force UI update
+                    // Ensure UI updates happen on main thread
                     DispatchQueue.main.async {
                         preferencesManager.objectWillChange.send()
                     }

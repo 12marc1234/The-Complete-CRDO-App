@@ -317,6 +317,29 @@ class DataManager: ObservableObject {
         return UserDefaults.standard.string(forKey: authTokenKey)
     }
     
+    func saveAuthToken(_ token: String) {
+        UserDefaults.standard.set(token, forKey: authTokenKey)
+    }
+    
+    func clearAuthToken() {
+        UserDefaults.standard.removeObject(forKey: authTokenKey)
+    }
+    
+    func setUserId(_ userId: String) {
+        UserDefaults.standard.set(userId, forKey: userIdKey)
+    }
+    
+    func getCurrentUserId() -> String {
+        return getUserId() ?? "unknown"
+    }
+    
+    func loadUserData() {
+        // Load user-specific data
+        // Note: WorkoutStore and UserPreferencesManager handle their own loading
+        GemsManager.shared.loadGemsData()
+        AchievementManager.shared.calculateAchievements()
+    }
+    
     func hasPendingData() -> Bool {
         return !getPendingRuns().isEmpty
     }

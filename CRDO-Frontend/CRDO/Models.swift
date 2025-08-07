@@ -266,53 +266,51 @@ class GemsManager: ObservableObject {
         return gems
     }
     
-    func awardGemsForRun(distance: Double, averageSpeed: Double, duration: TimeInterval) {
-        let gemsEarned = calculateGemsForRun(distance: distance, averageSpeed: averageSpeed)
+    func awardGemsForRun(_ gems: Int) {
+        print("💎 Awarding \(gems) gems for run")
+        totalGems += gems
+        gemsEarnedToday += gems
         
-        print("🎯 Gems Calculation:")
-        print("   Distance: \(distance) meters (\(distance / 1609.34) miles)")
-        print("   Average Speed: \(averageSpeed) mph")
-        print("   Gems Earned: \(gemsEarned)")
-        print("   Previous Total: \(totalGems)")
-        print("   Last Run Date: \(lastRunDate?.description ?? "None")")
-        
-        // Check if this is a new day
-        let today = Date()
-        if let lastRun = lastRunDate {
-            let calendar = Calendar.current
-            if !calendar.isDate(lastRun, inSameDayAs: today) {
-                gemsEarnedToday = 0 // Reset daily gems
-                print("   New day - resetting daily gems")
-            }
-        }
-        
-        totalGems += gemsEarned
-        gemsEarnedToday += gemsEarned
-        lastRunDate = today
-        
-        print("   New Total: \(totalGems)")
-        print("   Daily Gems: \(gemsEarnedToday)")
-        print("   Last Run Date: \(lastRunDate?.description ?? "None")")
-        
-        saveGemsData()
-        
-        // Force UI update immediately
-            self.objectWillChange.send()
-            print("💎 Gems updated - Total: \(self.totalGems), Daily: \(self.gemsEarnedToday)")
-        
-        // Also notify MainAppView to refresh
+        // Ensure UI updates happen on main thread
         DispatchQueue.main.async {
             self.objectWillChange.send()
         }
+        
+        saveGemsData()
+        print("💎 Total gems now: \(totalGems), earned today: \(gemsEarnedToday)")
     }
     
     func spendGems(_ amount: Int) -> Bool {
-        if totalGems >= amount {
-            totalGems -= amount
-            saveGemsData()
-            return true
+        guard totalGems >= amount else {
+            print("❌ Not enough gems to spend \(amount). Current: \(totalGems)")
+            return false
         }
-        return false
+        
+        print("💎 Spending \(amount) gems")
+        totalGems -= amount
+        
+        // Ensure UI updates happen on main thread
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+        }
+        
+        saveGemsData()
+        print("💎 Gems spent. Remaining: \(totalGems)")
+        return true
+    }
+    
+    func resetDailyGems() {
+        print("💎 Resetting daily gems")
+        gemsEarnedToday = 0
+        
+        // Ensure UI updates happen on main thread
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+            UserPreferencesManager.shared.objectWillChange.send()
+        }
+        
+        saveGemsData()
+        print("💎 Daily gems reset")
     }
     
     func refreshGemsData() {
@@ -1372,22 +1370,24 @@ class AchievementManager: ObservableObject {
 
 // MARK: - Workout Models
 struct Workout: Identifiable, Codable {
-    let id: UUID
-    let date: Date
-    let averageSpeed: Double
-    let peakSpeed: Double
-    let distance: Double
-    let time: TimeInterval
+    var id: UUID
+    let startTime: Date
+    let endTime: Date
+    let distance: Double // in meters
+    let duration: TimeInterval
+    let averageSpeed: Double // in m/s
+    let peakSpeed: Double // in m/s
     let route: [Coordinate]
     let category: WorkoutCategory
     
-    init(date: Date, averageSpeed: Double, peakSpeed: Double, distance: Double, time: TimeInterval, route: [Coordinate], category: WorkoutCategory = .running) {
+    init(startTime: Date, endTime: Date, distance: Double, duration: TimeInterval, averageSpeed: Double, peakSpeed: Double, route: [Coordinate], category: WorkoutCategory) {
         self.id = UUID()
-        self.date = date
+        self.startTime = startTime
+        self.endTime = endTime
+        self.distance = distance
+        self.duration = duration
         self.averageSpeed = averageSpeed
         self.peakSpeed = peakSpeed
-        self.distance = distance
-        self.time = time
         self.route = route
         self.category = category
     }
@@ -1455,7 +1455,16 @@ class WorkoutStore: ObservableObject {
         
         workouts.append(workout)
         saveWorkouts()
-        objectWillChange.send() // Explicitly trigger UI update
+        
+        // Ensure UI updates happen on main thread
+        DispatchQueue.main.async {
+            self.objectWillChange.send() // Explicitly trigger UI update
+        }
+        
+        // Save to Supabase
+        Task {
+            await SupabaseManager.shared.saveWorkout(workout)
+        }
         
         print("💾 Workout saved to store. Total workouts: \(workouts.count)")
         print("💾 WorkoutStore.objectWillChange.send() called")
@@ -1500,5 +1509,31 @@ class WorkoutStore: ObservableObject {
         } else {
             print("❌ Failed to encode workouts for saving")
         }
+    }
+} 
+
+// MARK: - User Stats
+
+struct UserStats: Codable {
+    let totalDistance: Double
+    let totalTime: TimeInterval
+    let averagePace: Double
+    let longestRun: Double
+    let currentStreak: Int
+    let longestStreak: Int
+    let totalRuns: Int
+    let totalGems: Int
+    let achievements: [String]
+    
+    init(totalDistance: Double = 0, totalTime: TimeInterval = 0, averagePace: Double = 0, longestRun: Double = 0, currentStreak: Int = 0, longestStreak: Int = 0, totalRuns: Int = 0, totalGems: Int = 0, achievements: [String] = []) {
+        self.totalDistance = totalDistance
+        self.totalTime = totalTime
+        self.averagePace = averagePace
+        self.longestRun = longestRun
+        self.currentStreak = currentStreak
+        self.longestStreak = longestStreak
+        self.totalRuns = totalRuns
+        self.totalGems = totalGems
+        self.achievements = achievements
     }
 } 
