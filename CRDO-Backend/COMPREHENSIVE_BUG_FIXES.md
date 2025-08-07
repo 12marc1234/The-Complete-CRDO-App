@@ -95,7 +95,51 @@ ForEach(displayWorkouts) { workout in
 - Removed tab selector and related state variables
 - Updated navigation title to just "Friends"
 
-### 7. **Data Flow Improvements** - FIXED ✅
+### 7. **Friend Request Persistence** - FIXED ✅
+**Issue**: Accepted friend requests reappeared after navigating away or logging out
+**Fix**: Implemented proper persistence for friend requests
+```swift
+// Added persistence methods for friend requests
+private func saveFriendRequests() {
+    let userId = DataManager.shared.getUserId() ?? "guest"
+    let key = "friendRequests_\(userId)"
+    
+    if let encoded = try? JSONEncoder().encode(friendRequests) {
+        UserDefaults.standard.set(encoded, forKey: key)
+        print("💾 Saved \(friendRequests.count) friend requests for user: \(userId)")
+    }
+}
+
+private func loadFriendRequests() {
+    let userId = DataManager.shared.getUserId() ?? "guest"
+    let key = "friendRequests_\(userId)"
+    
+    if let data = UserDefaults.standard.data(forKey: key),
+       let loadedRequests = try? JSONDecoder().decode([MockFriend].self, from: data) {
+        friendRequests = loadedRequests
+        print("📱 Loaded \(friendRequests.count) friend requests for user: \(userId)")
+    }
+}
+
+// Updated accept/decline functions to save changes
+private func acceptFriendRequest(_ request: MockFriend) {
+    withAnimation(.easeInOut(duration: 0.3)) {
+        friendRequests.removeAll { $0.id == request.id }
+        friends.insert(request, at: friends.count)
+        saveFriends()
+        saveFriendRequests() // Save the updated friend requests
+    }
+}
+
+private func declineFriendRequest(_ request: MockFriend) {
+    withAnimation(.easeInOut(duration: 0.3)) {
+        friendRequests.removeAll { $0.id == request.id }
+        saveFriendRequests() // Save the updated friend requests
+    }
+}
+```
+
+### 8. **Data Flow Improvements** - FIXED ✅
 **Issue**: Stats not updating when new workouts added
 **Fix**: Added notification listeners for real-time updates
 ```swift

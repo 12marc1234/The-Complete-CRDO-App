@@ -36,7 +36,8 @@ struct FriendsView: View {
                         showingProfile: $showingProfile,
                         scrollOffset: scrollOffset,
                         onAcceptFriend: acceptFriendRequest,
-                        onDeclineFriend: declineFriendRequest
+                        onDeclineFriend: declineFriendRequest,
+                        onDeleteFriend: deleteFriend
                     )
                 }
             }
@@ -78,7 +79,9 @@ struct FriendsView: View {
         }
         .onAppear {
             loadFriends()
+            loadFriendRequests()
             generateMockData()
+            // Generate mock friend requests only if no saved data exists
             generateMockFriendRequests()
         }
     }
@@ -106,31 +109,63 @@ struct FriendsView: View {
         }
     }
     
+    private func saveFriendRequests() {
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        let key = "friendRequests_\(userId)"
+        
+        if let encoded = try? JSONEncoder().encode(friendRequests) {
+            UserDefaults.standard.set(encoded, forKey: key)
+            print("💾 Saved \(friendRequests.count) friend requests for user: \(userId)")
+        }
+    }
+    
+    private func loadFriendRequests() {
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        let key = "friendRequests_\(userId)"
+        
+        if let data = UserDefaults.standard.data(forKey: key),
+           let loadedRequests = try? JSONDecoder().decode([MockFriend].self, from: data) {
+            friendRequests = loadedRequests
+            print("📱 Loaded \(friendRequests.count) friend requests for user: \(userId)")
+        }
+    }
+    
     private func generateMockFriendRequests() {
-        friendRequests = [
-            MockFriend(
-                name: "John Smith",
-                email: "john@example.com",
-                avatar: "person.circle.fill",
-                status: .online,
-                lastActive: Date(),
-                totalRuns: 15,
-                totalDistance: 45000,
-                averagePace: 300,
-                bio: "New to running, excited to join the community!"
-            ),
-            MockFriend(
-                name: "Lisa Brown",
-                email: "lisa@example.com",
-                avatar: "person.circle.fill",
-                status: .offline,
-                lastActive: Date().addingTimeInterval(-3600),
-                totalRuns: 22,
-                totalDistance: 67000,
-                averagePace: 280,
-                bio: "Trail runner and nature lover. Always up for a challenge!"
-            )
-        ]
+        // Only generate mock friend requests if the list is empty (first time)
+        // This should only happen when there are no saved friend requests
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        let key = "friendRequests_\(userId)"
+        
+        // Check if there are any saved friend requests
+        if UserDefaults.standard.data(forKey: key) == nil && friendRequests.isEmpty {
+            friendRequests = [
+                MockFriend(
+                    name: "John Smith",
+                    email: "john@example.com",
+                    avatar: "person.circle.fill",
+                    status: .online,
+                    lastActive: Date(),
+                    totalRuns: 15,
+                    totalDistance: 45000,
+                    averagePace: 300,
+                    bio: "New to running, excited to join the community!"
+                ),
+                MockFriend(
+                    name: "Lisa Brown",
+                    email: "lisa@example.com",
+                    avatar: "person.circle.fill",
+                    status: .offline,
+                    lastActive: Date().addingTimeInterval(-3600),
+                    totalRuns: 22,
+                    totalDistance: 67000,
+                    averagePace: 280,
+                    bio: "Trail runner and nature lover. Always up for a challenge!"
+                )
+            ]
+            // Save the initial friend requests
+            saveFriendRequests()
+            print("📱 Generated initial mock friend requests")
+        }
     }
     
     private func acceptFriendRequest(_ request: MockFriend) {
@@ -140,14 +175,26 @@ struct FriendsView: View {
             // Add to the bottom of the friends list
             friends.insert(request, at: friends.count)
             print("👥 Added \(request.name) to friends list. Total friends: \(friends.count)")
-            // Save friends to UserDefaults
+            // Save both friends and friend requests to UserDefaults
             saveFriends()
+            saveFriendRequests()
         }
     }
     
     private func declineFriendRequest(_ request: MockFriend) {
         withAnimation(.easeInOut(duration: 0.3)) {
             friendRequests.removeAll { $0.id == request.id }
+            // Save friend requests to UserDefaults
+            saveFriendRequests()
+        }
+    }
+    
+    private func deleteFriend(_ friend: MockFriend) {
+        print("🗑️ Deleting friend: \(friend.name)")
+        withAnimation(.easeInOut(duration: 0.3)) {
+            friends.removeAll { $0.id == friend.id }
+            // Save friends to UserDefaults
+            saveFriends()
         }
     }
     
@@ -203,13 +250,14 @@ struct FriendsTabView: View {
     let scrollOffset: CGFloat
     let onAcceptFriend: (MockFriend) -> Void
     let onDeclineFriend: (MockFriend) -> Void
+    let onDeleteFriend: (MockFriend) -> Void
     
     // Computed property to always get the latest friends
     private var currentFriends: [MockFriend] {
         return friends
     }
     
-    init(friends: [MockFriend], friendRequests: [MockFriend], unitSystem: UnitSystem, showingFriendRequests: Binding<Bool>, selectedFriend: Binding<MockFriend?>, showingProfile: Binding<Bool>, scrollOffset: CGFloat, onAcceptFriend: @escaping (MockFriend) -> Void, onDeclineFriend: @escaping (MockFriend) -> Void) {
+    init(friends: [MockFriend], friendRequests: [MockFriend], unitSystem: UnitSystem, showingFriendRequests: Binding<Bool>, selectedFriend: Binding<MockFriend?>, showingProfile: Binding<Bool>, scrollOffset: CGFloat, onAcceptFriend: @escaping (MockFriend) -> Void, onDeclineFriend: @escaping (MockFriend) -> Void, onDeleteFriend: @escaping (MockFriend) -> Void) {
         self.friends = friends
         self.friendRequests = friendRequests
         self.unitSystem = unitSystem
@@ -219,6 +267,7 @@ struct FriendsTabView: View {
         self.scrollOffset = scrollOffset
         self.onAcceptFriend = onAcceptFriend
         self.onDeclineFriend = onDeclineFriend
+        self.onDeleteFriend = onDeleteFriend
     }
     
     var body: some View {
@@ -276,6 +325,9 @@ struct FriendsTabView: View {
                                     print("👥 Tapped on friend: \(friend.name)")
                                     selectedFriend = friend
                                     showingProfile = true
+                                },
+                                onDelete: {
+                                    onDeleteFriend(friend)
                                 }
                             )
                         }
@@ -371,6 +423,8 @@ struct FriendCard: View {
     let friend: MockFriend
     let unitSystem: UnitSystem
     let onTap: () -> Void
+    let onDelete: () -> Void
+    @State private var showingDeleteAlert = false
     
     var body: some View {
         Button(action: onTap) {
@@ -433,8 +487,23 @@ struct FriendCard: View {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(Color.gray.opacity(0.2), lineWidth: 1)
             )
+            .contextMenu {
+                Button(role: .destructive) {
+                    showingDeleteAlert = true
+                } label: {
+                    Label("Delete Friend", systemImage: "person.badge.minus")
+                }
+            }
         }
         .buttonStyle(PlainButtonStyle())
+        .alert("Delete Friend", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                onDelete()
+            }
+        } message: {
+            Text("Are you sure you want to remove \(friend.name) from your friends list? This action cannot be undone.")
+        }
     }
     
     private var statusColor: Color {
