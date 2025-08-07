@@ -136,6 +136,78 @@ class NetworkService: ObservableObject {
     // MARK: - Authentication
     
     func signup(email: String, password: String, firstName: String, lastName: String) -> AnyPublisher<AuthResponse, Error> {
+        // Validate email format
+        guard email.contains("@") && email.contains(".") else {
+            return Fail(error: AuthError.invalidEmail)
+                .eraseToAnyPublisher()
+        }
+        
+        // Validate password length
+        guard password.count >= 6 else {
+            return Fail(error: AuthError.invalidPassword)
+                .eraseToAnyPublisher()
+        }
+        
+        // Check if user already exists
+        let mockUsers = MockUserDatabase.shared
+        
+        if mockUsers.userExists(email: email) {
+            print("❌ Signup failed: Email already exists: \(email)")
+            return Fail(error: AuthError.emailAlreadyExists)
+                .eraseToAnyPublisher()
+        }
+        
+        // Create new user
+        let newUser = MockUser(
+            id: "user-\(UUID().uuidString)",
+            email: email,
+            password: password,
+            firstName: firstName,
+            lastName: lastName,
+            fullName: "\(firstName) \(lastName)"
+        )
+        
+        // Add to database
+        print("🔐 Adding new user to database: \(newUser.email)")
+        mockUsers.addUser(newUser)
+        print("🔐 User added successfully. Total users in database: \(mockUsers.getUserCount())")
+        
+        // Create user object for response
+        let user = User(
+            id: newUser.id,
+            email: newUser.email,
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
+            fullName: newUser.fullName
+        )
+        
+        let mockSession = Session(
+            access_token: "mock-token-\(UUID().uuidString)",
+            refresh_token: "mock-refresh-\(UUID().uuidString)",
+            token_type: "Bearer",
+            expires_in: 3600,
+            expires_at: Int(Date().timeIntervalSince1970) + 3600,
+            user: SessionUser(
+                id: newUser.id,
+                email: newUser.email,
+                firstName: newUser.firstName,
+                lastName: newUser.lastName,
+                fullName: newUser.fullName
+            )
+        )
+        
+        let mockResponse = AuthResponse(
+            message: "Signup successful",
+            user: user,
+            session: mockSession
+        )
+        
+        print("🔐 Signup successful for: \(email)")
+        return Just(mockResponse)
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
+        
+        // Original network request (commented out for now)
         let endpoint = APIEndpoint.signup(email: email, password: password, firstName: firstName, lastName: lastName)
         return makeRequest(endpoint: endpoint)
             .decode(type: AuthResponse.self, decoder: JSONDecoder())
@@ -143,6 +215,78 @@ class NetworkService: ObservableObject {
     }
     
     func login(email: String, password: String) -> AnyPublisher<AuthResponse, Error> {
+        // Clean the email input (remove whitespace)
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Validate email format
+        guard cleanEmail.contains("@") && cleanEmail.contains(".") else {
+            return Fail(error: AuthError.invalidEmail)
+                .eraseToAnyPublisher()
+        }
+        
+        // Validate password length
+        guard password.count >= 6 else {
+            return Fail(error: AuthError.invalidPassword)
+                .eraseToAnyPublisher()
+        }
+        
+        // Check if user exists in mock database
+        let mockUsers = MockUserDatabase.shared
+        
+        // Debug: Check what's in UserDefaults and memory
+        mockUsers.debugUserDefaults()
+        
+        if let existingUser = mockUsers.getUser(email: cleanEmail) {
+            // User exists, check password
+            if existingUser.password == password {
+                // Password matches, create session
+                let user = User(
+                    id: existingUser.id,
+                    email: existingUser.email,
+                    firstName: existingUser.firstName,
+                    lastName: existingUser.lastName,
+                    fullName: existingUser.fullName
+                )
+                
+                let mockSession = Session(
+                    access_token: "mock-token-\(UUID().uuidString)",
+                    refresh_token: "mock-refresh-\(UUID().uuidString)",
+                    token_type: "Bearer",
+                    expires_in: 3600,
+                    expires_at: Int(Date().timeIntervalSince1970) + 3600,
+                    user: SessionUser(
+                        id: existingUser.id,
+                        email: existingUser.email,
+                        firstName: existingUser.firstName,
+                        lastName: existingUser.lastName,
+                        fullName: existingUser.fullName
+                    )
+                )
+                
+                let mockResponse = AuthResponse(
+                    message: "Login successful",
+                    user: user,
+                    session: mockSession
+                )
+                
+                print("🔐 Login successful for: \(email)")
+                return Just(mockResponse)
+                    .setFailureType(to: Error.self)
+                    .eraseToAnyPublisher()
+            } else {
+                // Wrong password
+                print("❌ Login failed: Wrong password for \(email)")
+                return Fail(error: AuthError.wrongPassword)
+                    .eraseToAnyPublisher()
+            }
+        } else {
+            // User doesn't exist
+            print("❌ Login failed: User not found for \(email)")
+            return Fail(error: AuthError.userNotFound)
+                .eraseToAnyPublisher()
+        }
+        
+        // Original network request (commented out for now)
         let endpoint = APIEndpoint.login(email: email, password: password)
         return makeRequest(endpoint: endpoint)
             .handleEvents(
@@ -397,6 +541,169 @@ struct User: Codable {
     }
 }
 
+// MARK: - Authentication Errors
+
+enum AuthError: LocalizedError {
+    case invalidEmail
+    case invalidPassword
+    case userNotFound
+    case wrongPassword
+    case emailAlreadyExists
+    case weakPassword
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidEmail:
+            return "Please enter a valid email address"
+        case .invalidPassword:
+            return "Password must be at least 6 characters"
+        case .userNotFound:
+            return "No account found with this email"
+        case .wrongPassword:
+            return "Incorrect password"
+        case .emailAlreadyExists:
+            return "An account with this email already exists"
+        case .weakPassword:
+            return "Password is too weak"
+        }
+    }
+}
+
+// MARK: - Mock User Database
+
+class MockUserDatabase {
+    static let shared = MockUserDatabase()
+    
+    private var users: [MockUser] = []
+    
+    private init() {
+        print("🏗️ MockUserDatabase singleton being initialized...")
+        loadUsers()
+        
+        // Only add default test users if no users exist
+        if users.isEmpty {
+            print("📝 No users found, creating default test users...")
+            // Create some test users
+            users = [
+                MockUser(
+                    id: "user-1",
+                    email: "test@example.com",
+                    password: "password123",
+                    firstName: "Test",
+                    lastName: "User",
+                    fullName: "Test User"
+                ),
+                MockUser(
+                    id: "user-2", 
+                    email: "demo@example.com",
+                    password: "demo123",
+                    firstName: "Demo",
+                    lastName: "User",
+                    fullName: "Demo User"
+                )
+            ]
+            saveUsers()
+        } else {
+            print("📝 Found \(users.count) existing users in database")
+        }
+    }
+    
+    func addUser(_ user: MockUser) {
+        users.append(user)
+        saveUsers() // Save to UserDefaults immediately
+        print("👤 Added user: \(user.email) - Total users: \(users.count)")
+    }
+    
+    func getUser(email: String) -> MockUser? {
+        print("🔍 Looking for user with email: \(email)")
+        print("🔍 Email length: \(email.count)")
+        print("🔍 Available users: \(users.map { $0.email })")
+        
+        // Check each user individually for debugging
+        for user in users {
+            let userEmailLower = user.email.lowercased()
+            let inputEmailLower = email.lowercased()
+            print("🔍 Comparing: '\(userEmailLower)' with '\(inputEmailLower)' - Match: \(userEmailLower == inputEmailLower)")
+        }
+        
+        let user = users.first { $0.email.lowercased() == email.lowercased() }
+        if let foundUser = user {
+            print("✅ Found user: \(foundUser.email)")
+        } else {
+            print("❌ User not found for email: \(email)")
+        }
+        return user
+    }
+    
+    func userExists(email: String) -> Bool {
+        let exists = users.contains { $0.email.lowercased() == email.lowercased() }
+        print("🔍 Checking if user exists: \(email) - \(exists)")
+        return exists
+    }
+    
+    func getUserCount() -> Int {
+        return users.count
+    }
+    
+    func debugUserDefaults() {
+        print("🔍 DEBUG: Checking UserDefaults for mockUsers...")
+        if let data = UserDefaults.standard.data(forKey: "mockUsers") {
+            print("🔍 DEBUG: Found data in UserDefaults, size: \(data.count) bytes")
+            if let loadedUsers = try? JSONDecoder().decode([MockUser].self, from: data) {
+                print("🔍 DEBUG: Successfully decoded \(loadedUsers.count) users from UserDefaults")
+                print("🔍 DEBUG: Users in UserDefaults: \(loadedUsers.map { $0.email })")
+            } else {
+                print("🔍 DEBUG: Failed to decode users from UserDefaults data")
+            }
+        } else {
+            print("🔍 DEBUG: No data found in UserDefaults for key 'mockUsers'")
+        }
+        print("🔍 DEBUG: Current users in memory: \(users.count)")
+        print("🔍 DEBUG: Users in memory: \(users.map { $0.email })")
+    }
+    
+    // MARK: - Persistence Methods
+    
+    private func saveUsers() {
+        print("💾 Attempting to save \(users.count) users...")
+        if let encoded = try? JSONEncoder().encode(users) {
+            UserDefaults.standard.set(encoded, forKey: "mockUsers")
+            UserDefaults.standard.synchronize() // Force immediate save
+            print("💾 Successfully saved \(users.count) users to UserDefaults")
+            print("💾 Users saved: \(users.map { $0.email })")
+        } else {
+            print("❌ Failed to encode users for saving")
+        }
+    }
+    
+    private func loadUsers() {
+        print("📱 Attempting to load users from UserDefaults...")
+        if let data = UserDefaults.standard.data(forKey: "mockUsers") {
+            print("📱 Found data in UserDefaults, attempting to decode...")
+            if let loadedUsers = try? JSONDecoder().decode([MockUser].self, from: data) {
+                users = loadedUsers
+                print("📱 Successfully loaded \(users.count) users from UserDefaults")
+                print("📱 Users loaded: \(users.map { $0.email })")
+            } else {
+                print("❌ Failed to decode users from UserDefaults data")
+                users = []
+            }
+        } else {
+            print("📱 No saved users found in UserDefaults, starting with empty database")
+            users = []
+        }
+    }
+}
+
+struct MockUser: Codable {
+    let id: String
+    let email: String
+    let password: String
+    let firstName: String
+    let lastName: String
+    let fullName: String
+}
+
 struct AuthResponse: Codable {
     let message: String
     let user: User?
@@ -426,6 +733,23 @@ struct SessionUser: Codable {
     let created_at: String?
     let updated_at: String?
     let is_anonymous: Bool?
+    
+    // Convenience initializer for mock data
+    init(id: String?, email: String?, firstName: String? = nil, lastName: String? = nil, fullName: String? = nil) {
+        self.id = id
+        self.aud = "authenticated"
+        self.role = "authenticated"
+        self.email = email
+        self.email_confirmed_at = nil
+        self.phone = nil
+        self.last_sign_in_at = nil
+        self.app_metadata = nil
+        self.user_metadata = nil
+        self.identities = nil
+        self.created_at = nil
+        self.updated_at = nil
+        self.is_anonymous = false
+    }
 }
 
 struct Identity: Codable {

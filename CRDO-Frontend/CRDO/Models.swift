@@ -414,7 +414,7 @@ struct RunSession: Codable, Identifiable {
 
 // MARK: - Mock Data Models
 
-struct MockFriend: Identifiable {
+struct MockFriend: Identifiable, Codable {
     let id = UUID()
     let name: String
     let email: String
@@ -427,7 +427,7 @@ struct MockFriend: Identifiable {
     let bio: String // New field for friend bio
 }
 
-enum FriendStatus {
+enum FriendStatus: Codable {
     case online
     case offline
     case running
@@ -508,31 +508,32 @@ struct CompactStatCard: View {
     let color: Color
     
     var body: some View {
-        VStack(spacing: 8) { // Reduced spacing to fit better
+        VStack(spacing: 12) { // Increased spacing for better proportions
             Text(value)
-                .font(.system(size: 22, weight: .bold, design: .monospaced)) // Reduced from 28 to 22
+                .font(.system(size: 32, weight: .bold, design: .monospaced)) // Much larger text
                 .foregroundColor(color)
-                .shadow(color: color.opacity(0.4), radius: 2)
-                .minimumScaleFactor(0.7) // Better scaling
+                .shadow(color: color.opacity(0.5), radius: 3)
+                .minimumScaleFactor(0.8) // Better scaling
                 .lineLimit(1)
             
             Text(title)
-                .font(.system(size: 11, weight: .bold, design: .monospaced)) // Reduced from 12 to 11
-                .foregroundColor(.gray.opacity(0.9))
+                .font(.system(size: 14, weight: .bold, design: .monospaced)) // Larger title
+                .foregroundColor(.white.opacity(0.9))
                 .textCase(.uppercase)
-                .tracking(0.6) // Reduced tracking
+                .tracking(1.0) // Better letter spacing
         }
-        .padding(.horizontal, 16) // Reduced from 20 to 16
-        .padding(.vertical, 14) // Reduced from 18 to 14
+        .padding(.horizontal, 24) // Much more padding
+        .padding(.vertical, 20) // Much more padding
+        .frame(minHeight: 100) // Minimum height to ensure consistency
         .background(
-            RoundedRectangle(cornerRadius: 16) // Reduced from 20 to 16
-                .fill(Color(red: 0.06, green: 0.06, blue: 0.10))
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(red: 0.08, green: 0.08, blue: 0.12))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(color.opacity(0.4), lineWidth: 1.5) // Reduced stroke
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(color.opacity(0.6), lineWidth: 2.0) // Thicker border
                 )
         )
-        .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3) // Reduced shadow
+        .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 4) // Better shadow
     }
 }
 

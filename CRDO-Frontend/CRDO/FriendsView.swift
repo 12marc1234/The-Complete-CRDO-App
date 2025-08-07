@@ -136,8 +136,32 @@ struct FriendsView: View {
             }
         }
         .onAppear {
+            loadFriends()
             generateMockData()
             generateMockFriendRequests()
+        }
+    }
+    
+    // MARK: - Persistence Methods
+    
+    private func saveFriends() {
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        let key = "friends_\(userId)"
+        
+        if let encoded = try? JSONEncoder().encode(friends) {
+            UserDefaults.standard.set(encoded, forKey: key)
+            print("💾 Saved \(friends.count) friends for user: \(userId)")
+        }
+    }
+    
+    private func loadFriends() {
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        let key = "friends_\(userId)"
+        
+        if let data = UserDefaults.standard.data(forKey: key),
+           let loadedFriends = try? JSONDecoder().decode([MockFriend].self, from: data) {
+            friends = loadedFriends
+            print("📱 Loaded \(friends.count) friends for user: \(userId)")
         }
     }
     
@@ -171,7 +195,10 @@ struct FriendsView: View {
     private func acceptFriendRequest(_ request: MockFriend) {
         withAnimation(.easeInOut(duration: 0.3)) {
             friendRequests.removeAll { $0.id == request.id }
-            friends.append(request)
+            // Add to the bottom of the friends list
+            friends.insert(request, at: friends.count)
+            // Save friends to UserDefaults
+            saveFriends()
         }
     }
     

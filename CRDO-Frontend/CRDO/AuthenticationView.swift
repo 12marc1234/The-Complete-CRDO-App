@@ -69,40 +69,87 @@ class AuthenticationTracker: ObservableObject {
         // Clear all user-specific data
         let userDefaults = UserDefaults.standard
         
-        // Clear gems data
-        if let userId = DataManager.shared.getUserId() {
-            let gemsPrefix = "gems_\(userId)_"
-            userDefaults.removeObject(forKey: gemsPrefix + "totalGems")
-            userDefaults.removeObject(forKey: gemsPrefix + "gemsEarnedToday")
-            userDefaults.removeObject(forKey: gemsPrefix + "lastRunDate")
-            userDefaults.removeObject(forKey: gemsPrefix + "dailySecondsCompleted")
-            userDefaults.removeObject(forKey: gemsPrefix + "dailyMinutesGoal")
+        // Clear ALL user data (for any user)
+        let allKeys = userDefaults.dictionaryRepresentation().keys
+        for key in allKeys {
+            if key.hasPrefix("gems_") || 
+               key.hasPrefix("workouts_") || 
+               key.hasPrefix("recentRuns_") ||
+               key.hasPrefix("friends_") ||
+               key.hasPrefix("achievements_") ||
+               key.hasPrefix("userPreferences_") ||
+               key.hasPrefix("userStats_") ||
+               key.hasPrefix("streak_") ||
+               key.hasPrefix("city_") ||
+               key.hasPrefix("dailyProgress_") ||
+               key.hasPrefix("profile_") ||
+               key.hasPrefix("bio_") ||
+               key.hasPrefix("description_") ||
+               key.hasPrefix("buildings_") ||
+               key.hasPrefix("cityBuildings_") ||
+               key.hasPrefix("userProfile_") ||
+               key.hasPrefix("userBio_") ||
+               key.hasPrefix("userDescription_") {
+                userDefaults.removeObject(forKey: key)
+                print("🗑️ Removed key: \(key)")
+            }
         }
         
-        // Clear workouts data
-        if let userId = DataManager.shared.getUserId() {
-            let workoutsKey = "workouts_\(userId)"
-            userDefaults.removeObject(forKey: workoutsKey)
-        }
-        
-        // Clear guest data if switching from guest mode
-        if let guestId = userDefaults.string(forKey: "guestUserId") {
-            let gemsPrefix = "gems_\(guestId)_"
-            userDefaults.removeObject(forKey: gemsPrefix + "totalGems")
-            userDefaults.removeObject(forKey: gemsPrefix + "gemsEarnedToday")
-            userDefaults.removeObject(forKey: gemsPrefix + "lastRunDate")
-            userDefaults.removeObject(forKey: gemsPrefix + "dailySecondsCompleted")
-            userDefaults.removeObject(forKey: gemsPrefix + "dailyMinutesGoal")
-            
-            let workoutsKey = "workouts_\(guestId)"
-            userDefaults.removeObject(forKey: workoutsKey)
-        }
-        
-        // Clear other user data
+        // Clear specific keys that might not follow the pattern
         userDefaults.removeObject(forKey: "userData")
         userDefaults.removeObject(forKey: "userPreferences")
+        userDefaults.removeObject(forKey: "unlockedAchievements")
+        userDefaults.removeObject(forKey: "totalGems")
+        userDefaults.removeObject(forKey: "gemsEarnedToday")
+        userDefaults.removeObject(forKey: "dailySecondsCompleted")
+        userDefaults.removeObject(forKey: "dailyMinutesGoal")
+        userDefaults.removeObject(forKey: "lastRunDate")
+        userDefaults.removeObject(forKey: "currentStreak")
+        userDefaults.removeObject(forKey: "longestStreak")
+        userDefaults.removeObject(forKey: "totalDistance")
+        userDefaults.removeObject(forKey: "totalTime")
+        userDefaults.removeObject(forKey: "averagePace")
+        userDefaults.removeObject(forKey: "bestDistance")
+        userDefaults.removeObject(forKey: "longestDistance")
         
-        print("🧹 Cleared all user data")
+        // Clear city and profile specific data
+        userDefaults.removeObject(forKey: "cityBuildings")
+        userDefaults.removeObject(forKey: "cityLevel")
+        userDefaults.removeObject(forKey: "cityProgress")
+        userDefaults.removeObject(forKey: "userBio")
+        userDefaults.removeObject(forKey: "userDescription")
+        userDefaults.removeObject(forKey: "userProfile")
+        userDefaults.removeObject(forKey: "profileBio")
+        userDefaults.removeObject(forKey: "profileDescription")
+        userDefaults.removeObject(forKey: "buildings")
+        userDefaults.removeObject(forKey: "cityData")
+        userDefaults.removeObject(forKey: "profileData")
+        
+        // Reset all managers to their initial state
+        GemsManager.shared.totalGems = 0
+        GemsManager.shared.gemsEarnedToday = 0
+        GemsManager.shared.dailySecondsCompleted = 0
+        GemsManager.shared.saveGemsData()
+        
+        WorkoutStore.shared.workouts.removeAll()
+        // Note: saveWorkouts() is private, so we can't call it directly
+        // The data will be saved when the app next accesses WorkoutStore
+        
+        // Clear RunManager data
+        let runManager = RunManager()
+        runManager.recentRuns.removeAll()
+        runManager.saveRecentRuns()
+        
+        // Clear AchievementManager data
+        let achievementManager = AchievementManager.shared
+        achievementManager.achievements.removeAll()
+        
+        // Clear CityManager data
+        let cityManager = CityManager.shared
+        cityManager.buildings.removeAll()
+        // Note: CityManager saves data automatically, so clearing the buildings array should reset it
+        
+        print("🧹 COMPLETELY cleared all user data")
     }
     
     func exitGuestMode() {
@@ -123,18 +170,23 @@ class AuthenticationTracker: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        DataManager.shared.signup(email: email, password: password, firstName: firstName, lastName: lastName)
+        NetworkService.shared.signup(email: email, password: password, firstName: firstName, lastName: lastName)
             .sink(
                 receiveCompletion: { completion in
                     DispatchQueue.main.async {
                         self.isLoading = false
                         if case .failure(let error) = completion {
-                            self.errorMessage = error.localizedDescription
+                            if let authError = error as? AuthError {
+                                self.errorMessage = authError.errorDescription
+                            } else {
+                                self.errorMessage = error.localizedDescription
+                            }
                         }
                     }
                 },
-                receiveValue: { success in
+                receiveValue: { response in
                     DispatchQueue.main.async {
+                        print("🔐 Signup successful - setting authentication state")
                         self.isAuthenticated = true
                         self.isGuestMode = false
                         self.errorMessage = nil
@@ -142,16 +194,23 @@ class AuthenticationTracker: ObservableObject {
                         // Save authentication data
                         UserDefaults.standard.set(true, forKey: "isAuthenticated")
                         UserDefaults.standard.set(false, forKey: "isGuestMode")
+                        print("🔐 Saved authentication data to UserDefaults")
                         
-                        // Create and save user data
-                        let user = User(id: DataManager.shared.currentUser?.id ?? "", email: email, firstName: firstName, lastName: lastName, fullName: "\(firstName) \(lastName)")
-                        self.currentUser = user
-                        
-                        if let userData = try? JSONEncoder().encode(user) {
-                            UserDefaults.standard.set(userData, forKey: "userData")
+                        // Set current user from response
+                        if let user = response.user {
+                            self.currentUser = user
+                            print("🔐 Set current user: \(user.email)")
+                            
+                            if let userData = try? JSONEncoder().encode(user) {
+                                UserDefaults.standard.set(userData, forKey: "userData")
+                                print("🔐 Saved user data to UserDefaults")
+                            }
+                        } else {
+                            print("🔐 Warning: No user in response")
                         }
                         
-                        // Clear any existing data and reload for the new user
+                        // For signup, always clear data since it's a new user
+                        print("🆕 New user signup - clearing any existing data")
                         self.clearAllUserData()
                         self.reloadLocalData()
                         
@@ -167,17 +226,21 @@ class AuthenticationTracker: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        DataManager.shared.login(email: email, password: password)
+        NetworkService.shared.login(email: email, password: password)
             .sink(
                 receiveCompletion: { completion in
                     DispatchQueue.main.async {
                         self.isLoading = false
                         if case .failure(let error) = completion {
-                            self.errorMessage = error.localizedDescription
+                            if let authError = error as? AuthError {
+                                self.errorMessage = authError.errorDescription
+                            } else {
+                                self.errorMessage = error.localizedDescription
+                            }
                         }
                     }
                 },
-                receiveValue: { success in
+                receiveValue: { response in
                     DispatchQueue.main.async {
                         print("🔐 Login successful - setting authentication state")
                         self.isAuthenticated = true
@@ -189,21 +252,30 @@ class AuthenticationTracker: ObservableObject {
                         UserDefaults.standard.set(false, forKey: "isGuestMode")
                         print("🔐 Saved authentication data to UserDefaults")
                         
-                        // Set current user from DataManager
-                        if let currentUser = DataManager.shared.currentUser {
-                            self.currentUser = currentUser
-                            print("🔐 Set current user: \(currentUser.email)")
+                        // Set current user from response
+                        if let user = response.user {
+                            self.currentUser = user
+                            print("🔐 Set current user: \(user.email)")
                             
-                            if let userData = try? JSONEncoder().encode(currentUser) {
+                            if let userData = try? JSONEncoder().encode(user) {
                                 UserDefaults.standard.set(userData, forKey: "userData")
                                 print("🔐 Saved user data to UserDefaults")
                             }
                         } else {
-                            print("🔐 Warning: No current user in DataManager")
+                            print("🔐 Warning: No user in response")
                         }
                         
-                        // Clear any existing data and reload for the new user
-                        self.clearAllUserData()
+                        // Only clear data if switching from a different user
+                        if let previousUser = self.currentUser, 
+                           let newUser = response.user,
+                           previousUser.id != newUser.id {
+                            print("🔄 Switching users - clearing previous user data")
+                            self.clearAllUserData()
+                        } else {
+                            print("🔐 Same user login - preserving data")
+                        }
+                        
+                        // Reload data for the current user
                         self.reloadLocalData()
                         
                         // Notify other components that user changed

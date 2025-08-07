@@ -634,67 +634,80 @@ struct RunMapView: View {
                     }
                 }
                 
-                // Optimized Stats overlay with better proportions
-                VStack(spacing: 8) { // Reduced spacing from 16 to 8
+                // Professional Stats overlay with large, beautiful cards
+                VStack(spacing: 16) { // Increased spacing for better visual separation
                     Spacer()
                     
-                    // Main stats row
-                    HStack(spacing: 12) { // Reduced spacing from 16 to 12
-                        // Current Speed
+                    // Top row - 2 cards each taking more space
+                    HStack(spacing: 16) {
+                        // Current Speed - Larger card
                         CompactStatCard(
                             title: "CURRENT",
                             value: UnitConverter.formatSpeed(runManager.currentSpeed, unitSystem: preferencesManager.preferences.unitSystem),
                             color: .blue
                         )
+                        .frame(maxWidth: .infinity)
                         
-                        // Average Speed
+                        // Average Speed - Larger card
                         CompactStatCard(
                             title: "AVERAGE",
                             value: UnitConverter.formatSpeed(runManager.averageSpeed, unitSystem: preferencesManager.preferences.unitSystem),
                             color: .green
                         )
-                        
-                        // Distance
+                        .frame(maxWidth: .infinity)
+                    }
+                    .padding(.horizontal, 16)
+                    
+                    // Middle row - 2 cards
+                    HStack(spacing: 16) {
+                        // Distance - Larger card
                         CompactStatCard(
                             title: "DISTANCE",
                             value: UnitConverter.formatDistance(runManager.currentRun?.distance ?? 0, unitSystem: preferencesManager.preferences.unitSystem),
                             color: .orange
                         )
+                        .frame(maxWidth: .infinity)
                         
-                        // Time
+                        // Time - Larger card
                         CompactStatCard(
                             title: "TIME",
                             value: formatRunTime(Int(runManager.currentRun?.duration ?? 0)),
                             color: .purple
                         )
+                        .frame(maxWidth: .infinity)
                     }
-                    .padding(.horizontal, 20) // Reduced from 24 to 20
-                    .padding(.bottom, 8) // Reduced from 12 to 8
+                    .padding(.horizontal, 16)
                     
-                    // Pace and Finish row
-                    HStack(spacing: 16) { // Reduced spacing from 20 to 16
+                    // Bottom row - Pace card and Finish button
+                    HStack(spacing: 16) {
+                        // Pace - Larger card
                         CompactStatCard(
                             title: "PACE",
                             value: UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: preferencesManager.preferences.unitSystem),
                             color: .red
                         )
+                        .frame(maxWidth: .infinity)
                         
-                        Spacer()
-                        
-                        // Optimized Finish Run Button
+                        // Professional Finish Run Button
                         Button(action: {
                             runManager.finishRun()
                             dismiss()
                         }) {
-                            HStack(spacing: 8) { // Reduced spacing
+                            VStack(spacing: 4) {
                                 Image(systemName: "stop.circle.fill")
-                                    .font(.system(size: 18, weight: .semibold)) // Reduced size
-                                Text("FINISH RUN")
-                                    .font(.system(size: 14, weight: .bold, design: .monospaced)) // Reduced size
+                                    .font(.system(size: 24, weight: .semibold))
+                                
+                                VStack(spacing: 2) {
+                                    Text("FINISH")
+                                        .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                    Text("RUN")
+                                        .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                }
                             }
                             .foregroundColor(.white)
-                            .padding(.horizontal, 20) // Reduced padding
-                            .padding(.vertical, 12) // Reduced padding
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 20)
+                            .frame(minHeight: 100)
                             .background(
                                 LinearGradient(
                                     gradient: Gradient(colors: [Color.red, Color.red.opacity(0.8)]),
@@ -702,12 +715,13 @@ struct RunMapView: View {
                                     endPoint: .bottomTrailing
                                 )
                             )
-                            .cornerRadius(25)
-                            .shadow(color: Color.red.opacity(0.3), radius: 8, x: 0, y: 4)
+                            .cornerRadius(20)
+                            .shadow(color: Color.red.opacity(0.4), radius: 10, x: 0, y: 5)
                         }
+                        .frame(maxWidth: .infinity)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 15)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 20)
                 }
                 .background(
                     LinearGradient(

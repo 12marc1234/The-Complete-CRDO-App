@@ -77,22 +77,6 @@ struct WorkoutHistoryView: View {
                 // Enhanced Header
                 VStack(spacing: 16) {
                     HStack {
-                        Button(action: {
-                            dismiss()
-                        }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 14, weight: .semibold))
-                                Text("BACK")
-                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.white.opacity(0.15))
-                            .cornerRadius(20)
-                        }
-                        
                         Spacer()
                         
                         Button(action: {

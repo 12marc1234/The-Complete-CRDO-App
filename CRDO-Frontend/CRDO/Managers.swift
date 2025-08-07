@@ -148,6 +148,11 @@ class RunManager: NSObject, ObservableObject {
     func finishRun() {
         guard let run = currentRun else { return }
         
+        // Stop the timer first to prevent duration from continuing to count
+        timer?.invalidate()
+        timer = nil
+        isRunning = false
+        
         // Calculate final stats
         let finalDistance = distance
         let finalDuration = Date().timeIntervalSince(run.startTime)
@@ -281,10 +286,10 @@ class RunManager: NSObject, ObservableObject {
         let distance = location.distance(from: lastLocation)
         let timeInterval = location.timestamp.timeIntervalSince(lastLocation.timestamp)
         
-        // Much more responsive route tracking to capture the actual path
+        // Much more responsive route tracking to capture curves and turns
         // Add points more frequently to show the real route with all turns and curves
-        // Only require 2 meters distance and 1 second time interval
-        return distance >= 2 && timeInterval >= 1
+        // Reduced distance threshold to 1 meter and time to 0.5 seconds for smoother curves
+        return distance >= 1 && timeInterval >= 0.5
     }
     
     func loadRecentRuns() {
