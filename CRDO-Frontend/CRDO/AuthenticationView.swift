@@ -113,66 +113,54 @@ class AuthenticationTracker: ObservableObject {
     }
     
     func login(email: String, password: String) {
-        isLoading = true
-        errorMessage = nil
-        
-        NetworkService.shared.login(email: email, password: password)
-            .sink(
-                receiveCompletion: { completion in
-                    DispatchQueue.main.async {
-                        self.isLoading = false
-                        if case .failure(let error) = completion {
-                            if let authError = error as? AuthError {
-                                self.errorMessage = authError.errorDescription
-                            } else {
-                                self.errorMessage = error.localizedDescription
-                            }
-                        }
-                    }
-                },
-                receiveValue: { response in
-                    DispatchQueue.main.async {
-                        print("🔐 Login successful - setting authentication state")
-                        self.isAuthenticated = true
-                        self.isGuestMode = false
-                        self.errorMessage = nil
+        Task {
+            await SupabaseManager.shared.signIn(email: email, password: password)
+            
+            DispatchQueue.main.async {
+                self.isLoading = SupabaseManager.shared.isLoading
+                
+                if SupabaseManager.shared.isAuthenticated {
+                    self.isAuthenticated = true
+                    self.isGuestMode = false
+                    self.errorMessage = nil
+                    
+                    // Save authentication data
+                    UserDefaults.standard.set(true, forKey: "isAuthenticated")
+                    UserDefaults.standard.set(false, forKey: "isGuestMode")
+                    print("🔐 Saved authentication data to UserDefaults")
+                    
+                    // Set current user from SupabaseManager
+                    if let user = SupabaseManager.shared.currentUser {
+                        self.currentUser = user
+                        print("🔐 Set current user: \(user.email)")
                         
-                        // Save authentication data
-                        UserDefaults.standard.set(true, forKey: "isAuthenticated")
-                        UserDefaults.standard.set(false, forKey: "isGuestMode")
-                        print("🔐 Saved authentication data to UserDefaults")
-                        
-                        // Set current user from response
-                        if let user = response.user {
-                            self.currentUser = user
-                            print("🔐 Set current user: \(user.email)")
-                            
-                            if let userData = try? JSONEncoder().encode(user) {
-                                UserDefaults.standard.set(userData, forKey: "userData")
-                            }
-                            
-                            // Set user ID for data isolation
-                            DataManager.shared.setUserId(user.id)
-                            
-                            // Check if this is a different user than before
-                            if let previousUser = self.currentUser,
-                               previousUser.id != user.id {
-                                print("🔄 Switching users - clearing previous user data")
-                                self.clearAllUserData()
-                            } else {
-                                print("🔐 Same user login - preserving data")
-                            }
-                            
-                            // Reload data for the current user
-                            self.reloadLocalData()
-                            
-                            // Notify other components that user changed
-                            NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
+                        if let userData = try? JSONEncoder().encode(user) {
+                            UserDefaults.standard.set(userData, forKey: "userData")
                         }
+                        
+                        // Set user ID for data isolation
+                        DataManager.shared.setUserId(user.id)
+                        
+                        // Check if this is a different user than before
+                        if let previousUser = self.currentUser,
+                           previousUser.id != user.id {
+                            print("🔄 Switching users - clearing previous user data")
+                            self.clearAllUserData()
+                        } else {
+                            print("🔐 Same user login - preserving data")
+                        }
+                        
+                        // Reload data for the current user
+                        self.reloadLocalData()
+                        
+                        // Notify other components that user changed
+                        NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
                     }
+                } else {
+                    self.errorMessage = SupabaseManager.shared.errorMessage
                 }
-            )
-            .store(in: &cancellables)
+            }
+        }
     }
     
     func signOut() {

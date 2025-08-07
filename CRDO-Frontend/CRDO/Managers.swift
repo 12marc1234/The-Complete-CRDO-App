@@ -54,6 +54,24 @@ class RunManager: NSObject, ObservableObject {
         
         // Set this as the current instance
         RunManager.currentInstance = self
+        
+        // Listen for workout changes to update stats
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("WorkoutAdded"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.loadRecentRuns()
+        }
+        
+        // Listen for user changes to reload data
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("UserChanged"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.loadRecentRuns()
+        }
     }
     
     private func setupLocationManager() {
@@ -285,16 +303,26 @@ class RunManager: NSObject, ObservableObject {
     }
     
     func loadRecentRuns() {
-        let userId = DataManager.shared.getUserId() ?? "guest"
-        let key = "recentRuns_\(userId)"
+        // Use real data from WorkoutStore instead of mock data
+        let workouts = WorkoutStore.shared.workouts
         
-        if let data = UserDefaults.standard.data(forKey: key),
-           let runs = try? JSONDecoder().decode([RunSession].self, from: data) {
-            recentRuns = runs
-        } else {
-            // Create some test runs with GPS coordinates for demonstration
-            createTestRuns()
+        // Convert Workout objects to RunSession objects for compatibility
+        recentRuns = workouts.map { workout in
+            var runSession = RunSession()
+            runSession.startTime = workout.startTime
+            runSession.endTime = workout.startTime.addingTimeInterval(workout.duration)
+            runSession.distance = workout.distance
+            runSession.duration = workout.duration
+            runSession.averagePace = workout.averageSpeed > 0 ? 60 / workout.averageSpeed : 0
+            runSession.route = workout.route.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+            runSession.isActive = false
+            return runSession
         }
+        
+        // Calculate stats from real data
+        calculateStats()
+        
+        print("📱 Loaded \(recentRuns.count) real runs from WorkoutStore")
     }
     
     private func createTestRuns() {

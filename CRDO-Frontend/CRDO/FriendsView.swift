@@ -9,19 +9,14 @@
 import SwiftUI
 
 struct FriendsView: View {
-    @State private var selectedTab = 0
     @ObservedObject var preferencesManager = UserPreferencesManager.shared
     @State private var friends: [MockFriend] = []
-    @State private var leaderboardData: [MockLeaderboardEntry] = []
-    @State private var selectedTimeframe = 0
     @State private var showingFriendRequests = false
     @State private var selectedFriend: MockFriend?
     @State private var showingProfile = false
     @State private var scrollOffset: CGFloat = 0
     @State private var showingAddFriend = false
     @State private var friendRequests: [MockFriend] = []
-    
-    private let timeframes = ["This Week", "This Month", "All Time"]
     
     var body: some View {
         NavigationView {
@@ -31,77 +26,21 @@ struct FriendsView: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Enhanced tab selector with modern design
-                    HStack(spacing: 0) {
-                        // Friends Tab
-                        Button(action: { selectedTab = 0 }) {
-                            Text("Friends")
-                                .font(.system(size: 16, weight: selectedTab == 0 ? .semibold : .medium))
-                                .foregroundColor(selectedTab == 0 ? .white : .white.opacity(0.7))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(
-                                    selectedTab == 0 ? 
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white.opacity(0.15)) :
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.clear)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(selectedTab == 0 ? Color.white.opacity(0.3) : Color.clear, lineWidth: 1)
-                                )
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                        // Leaderboards Tab
-                        Button(action: { selectedTab = 1 }) {
-                            Text("Leaderboards")
-                                .font(.system(size: 16, weight: selectedTab == 1 ? .semibold : .medium))
-                                .foregroundColor(selectedTab == 1 ? .white : .white.opacity(0.7))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(
-                                    selectedTab == 1 ? 
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white.opacity(0.15)) :
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.clear)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(selectedTab == 1 ? Color.white.opacity(0.3) : Color.clear, lineWidth: 1)
-                                )
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                    .padding(.bottom, 20)
-                    
-                    if selectedTab == 0 {
-                        FriendsTabView(
-                            friends: friends,
-                            friendRequests: friendRequests,
-                            unitSystem: preferencesManager.preferences.unitSystem,
-                            showingFriendRequests: $showingFriendRequests,
-                            selectedFriend: $selectedFriend,
-                            showingProfile: $showingProfile,
-                            scrollOffset: scrollOffset,
-                            onAcceptFriend: acceptFriendRequest,
-                            onDeclineFriend: declineFriendRequest
-                        )
-                    } else {
-                        LeaderboardsTabView(
-                            leaderboardData: leaderboardData,
-                            selectedTimeframe: $selectedTimeframe,
-                            unitSystem: preferencesManager.preferences.unitSystem,
-                            scrollOffset: scrollOffset
-                        )
-                    }
+                    // Friends content only (removed leaderboards)
+                    FriendsTabView(
+                        friends: friends,
+                        friendRequests: friendRequests,
+                        unitSystem: preferencesManager.preferences.unitSystem,
+                        showingFriendRequests: $showingFriendRequests,
+                        selectedFriend: $selectedFriend,
+                        showingProfile: $showingProfile,
+                        scrollOffset: scrollOffset,
+                        onAcceptFriend: acceptFriendRequest,
+                        onDeclineFriend: declineFriendRequest
+                    )
                 }
             }
-            .navigationTitle(selectedTab == 0 ? "Friends" : "Leaderboards")
+            .navigationTitle("Friends")
             .navigationBarTitleDisplayMode(.large)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
@@ -251,55 +190,6 @@ struct FriendsView: View {
                 )
             ]
         }
-        
-        // Generate mock leaderboard data
-        leaderboardData = [
-            MockLeaderboardEntry(
-                rank: 1,
-                name: "Alex Thompson",
-                distance: 156000,
-                duration: 7200,
-                averagePace: 250,
-                totalRuns: 52,
-                points: 1250
-            ),
-            MockLeaderboardEntry(
-                rank: 2,
-                name: "Sarah Johnson",
-                distance: 125000,
-                duration: 6000,
-                averagePace: 280,
-                totalRuns: 45,
-                points: 1100
-            ),
-            MockLeaderboardEntry(
-                rank: 3,
-                name: "Mike Chen",
-                distance: 89000,
-                duration: 4800,
-                averagePace: 320,
-                totalRuns: 32,
-                points: 950
-            ),
-            MockLeaderboardEntry(
-                rank: 4,
-                name: "Emma Davis",
-                distance: 67000,
-                duration: 3600,
-                averagePace: 350,
-                totalRuns: 28,
-                points: 800
-            ),
-            MockLeaderboardEntry(
-                rank: 5,
-                name: "David Wilson",
-                distance: 54000,
-                duration: 3000,
-                averagePace: 380,
-                totalRuns: 22,
-                points: 650
-            )
-        ]
     }
 }
 
@@ -555,119 +445,6 @@ struct FriendCard: View {
             return .blue
         case .offline:
             return .gray
-        }
-    }
-}
-
-struct LeaderboardsTabView: View {
-    let leaderboardData: [MockLeaderboardEntry]
-    @Binding var selectedTimeframe: Int
-    let unitSystem: UnitSystem
-    let scrollOffset: CGFloat
-    
-    private let timeframes = ["This Week", "This Month", "All Time"]
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Custom timeframe selector with better visibility
-            HStack(spacing: 8) {
-                ForEach(0..<timeframes.count, id: \.self) { index in
-                    Button(action: { selectedTimeframe = index }) {
-                        Text(timeframes[index])
-                            .font(.system(size: 12, weight: selectedTimeframe == index ? .semibold : .medium))
-                            .foregroundColor(selectedTimeframe == index ? .white : .white.opacity(0.6))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                selectedTimeframe == index ? 
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.white.opacity(0.2)) :
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.clear)
-                            )
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-            }
-            .padding(.horizontal)
-            .padding(.top, 4)
-            .padding(.bottom, 12)
-            
-            // Leaderboard with fade-in
-            ScrollView {
-                LazyVStack(spacing: 10) {
-                    ForEach(leaderboardData) { entry in
-                        LeaderboardCard(entry: entry, unitSystem: unitSystem)
-                    }
-                }
-                .padding()
-            }
-            .opacity(max(0.5, 1.0 - scrollOffset / 250)) // Improved readability
-        }
-    }
-}
-
-struct LeaderboardCard: View {
-    let entry: MockLeaderboardEntry
-    let unitSystem: UnitSystem
-    
-    var body: some View {
-        HStack(spacing: 15) {
-            // Rank
-            ZStack {
-                Circle()
-                    .fill(rankColor)
-                    .frame(width: 40, height: 40)
-                
-                Text("\(entry.rank)")
-                    .font(.system(size: 18, weight: .bold, design: .monospaced))
-                    .foregroundColor(.white)
-            }
-            
-            // Runner info
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.name)
-                    .font(.system(size: 18, weight: .bold, design: .monospaced))
-                    .foregroundColor(.white)
-                
-                Text("\(entry.totalRuns) runs • \(UnitConverter.formatDistance(entry.distance, unitSystem: unitSystem))")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-            
-            Spacer()
-            
-            // Stats
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(UnitConverter.formatPace(entry.averagePace, unitSystem: unitSystem))
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.orange)
-                
-                Text("\(entry.points) pts")
-                    .font(.caption2)
-                    .foregroundColor(.gold)
-            }
-        }
-        .padding()
-        .background(Color.black.opacity(0.3))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-        )
-    }
-    
-    private var rankColor: Color {
-        switch entry.rank {
-        case 1:
-            return .yellow
-        case 2:
-            return Color(.systemGray4)
-        case 3:
-            return Color(.systemOrange)
-        default:
-            return .blue
         }
     }
 }

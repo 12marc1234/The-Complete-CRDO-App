@@ -431,16 +431,7 @@ enum FriendStatus: Codable {
     case running
 }
 
-struct MockLeaderboardEntry: Identifiable {
-    let id = UUID()
-    let rank: Int
-    let name: String
-    let distance: Double
-    let duration: TimeInterval
-    let averagePace: Double
-    let totalRuns: Int
-    let points: Int
-}
+
 
 // MARK: - Chart Data Models
 
