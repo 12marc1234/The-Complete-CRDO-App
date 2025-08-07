@@ -84,6 +84,10 @@ struct ProfileView: View {
                 .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
                     scrollOffset = value
                 }
+                .onAppear {
+                    // Recalculate achievements when profile view appears
+                    achievementManager.calculateAchievements()
+                }
             }
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.large)
@@ -233,6 +237,17 @@ struct AchievementsSection: View {
         achievements.filter { $0.isUnlocked }
     }
     
+    var displayAchievements: [Achievement] {
+        // Show unlocked achievements first, then some locked ones if we have space
+        let unlocked = achievements.filter { $0.isUnlocked }
+        if unlocked.count >= 3 {
+            return Array(unlocked.prefix(3))
+        } else {
+            let remaining = achievements.filter { !$0.isUnlocked }
+            return unlocked + Array(remaining.prefix(3 - unlocked.count))
+        }
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
             HStack {
@@ -263,7 +278,7 @@ struct AchievementsSection: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 15) {
-                        ForEach(Array(unlockedAchievements.prefix(3))) { achievement in
+                        ForEach(Array(displayAchievements.prefix(3))) { achievement in
                             AchievementCard(achievement: achievement)
                         }
                     }

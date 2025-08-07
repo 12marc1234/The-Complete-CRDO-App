@@ -1206,11 +1206,16 @@ class AchievementManager: ObservableObject {
     func calculateAchievements() {
         // Get the RunManager instance from the main app
         guard let runManager = RunManager.currentInstance else {
-            print("❌ Could not find RunManager instance")
+            print("❌ Could not find RunManager instance, using empty data")
+            // Use empty data if RunManager is not available
+            updateAchievementsWithData(recentRuns: [])
             return
         }
         let recentRuns = runManager.recentRuns
-        
+        updateAchievementsWithData(recentRuns: recentRuns)
+    }
+    
+    private func updateAchievementsWithData(recentRuns: [RunSession]) {
         // Calculate total runs
         let totalRuns = recentRuns.count
         

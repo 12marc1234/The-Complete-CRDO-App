@@ -87,7 +87,9 @@ struct FriendsView: View {
                             showingFriendRequests: $showingFriendRequests,
                             selectedFriend: $selectedFriend,
                             showingProfile: $showingProfile,
-                            scrollOffset: scrollOffset
+                            scrollOffset: scrollOffset,
+                            onAcceptFriend: acceptFriendRequest,
+                            onDeclineFriend: declineFriendRequest
                         )
                     } else {
                         LeaderboardsTabView(
@@ -193,10 +195,12 @@ struct FriendsView: View {
     }
     
     private func acceptFriendRequest(_ request: MockFriend) {
+        print("👥 Accepting friend request: \(request.name)")
         withAnimation(.easeInOut(duration: 0.3)) {
             friendRequests.removeAll { $0.id == request.id }
             // Add to the bottom of the friends list
             friends.insert(request, at: friends.count)
+            print("👥 Added \(request.name) to friends list. Total friends: \(friends.count)")
             // Save friends to UserDefaults
             saveFriends()
         }
@@ -307,12 +311,15 @@ struct FriendsTabView: View {
     @Binding var selectedFriend: MockFriend?
     @Binding var showingProfile: Bool
     let scrollOffset: CGFloat
+    let onAcceptFriend: (MockFriend) -> Void
+    let onDeclineFriend: (MockFriend) -> Void
+    
     // Computed property to always get the latest friends
     private var currentFriends: [MockFriend] {
         return friends
     }
     
-    init(friends: [MockFriend], friendRequests: [MockFriend], unitSystem: UnitSystem, showingFriendRequests: Binding<Bool>, selectedFriend: Binding<MockFriend?>, showingProfile: Binding<Bool>, scrollOffset: CGFloat) {
+    init(friends: [MockFriend], friendRequests: [MockFriend], unitSystem: UnitSystem, showingFriendRequests: Binding<Bool>, selectedFriend: Binding<MockFriend?>, showingProfile: Binding<Bool>, scrollOffset: CGFloat, onAcceptFriend: @escaping (MockFriend) -> Void, onDeclineFriend: @escaping (MockFriend) -> Void) {
         self.friends = friends
         self.friendRequests = friendRequests
         self.unitSystem = unitSystem
@@ -320,6 +327,8 @@ struct FriendsTabView: View {
         self._selectedFriend = selectedFriend
         self._showingProfile = showingProfile
         self.scrollOffset = scrollOffset
+        self.onAcceptFriend = onAcceptFriend
+        self.onDeclineFriend = onDeclineFriend
     }
     
     var body: some View {
@@ -348,10 +357,10 @@ struct FriendsTabView: View {
                                     name: request.name,
                                     mutualFriends: Int.random(in: 1...5),
                                     onAccept: {
-                                        // This will be handled by the parent view
+                                        onAcceptFriend(request)
                                     },
                                     onDecline: {
-                                        // This will be handled by the parent view
+                                        onDeclineFriend(request)
                                     }
                                 )
                             }
