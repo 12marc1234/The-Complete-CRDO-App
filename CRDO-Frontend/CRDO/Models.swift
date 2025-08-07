@@ -70,6 +70,15 @@ class GemsManager: ObservableObject {
     private init() {
         loadGemsData()
         checkDailyReset()
+        
+        // Listen for user changes to reload data
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("UserChanged"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.loadGemsData()
+        }
     }
     
     func loadGemsData() {
@@ -499,31 +508,31 @@ struct CompactStatCard: View {
     let color: Color
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 8) { // Reduced spacing to fit better
             Text(value)
-                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                .font(.system(size: 22, weight: .bold, design: .monospaced)) // Reduced from 28 to 22
                 .foregroundColor(color)
-                .shadow(color: color.opacity(0.3), radius: 1)
-                .minimumScaleFactor(0.7)
+                .shadow(color: color.opacity(0.4), radius: 2)
+                .minimumScaleFactor(0.7) // Better scaling
                 .lineLimit(1)
             
             Text(title)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundColor(.gray.opacity(0.8))
+                .font(.system(size: 11, weight: .bold, design: .monospaced)) // Reduced from 12 to 11
+                .foregroundColor(.gray.opacity(0.9))
                 .textCase(.uppercase)
-                .tracking(0.5)
+                .tracking(0.6) // Reduced tracking
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16) // Reduced from 20 to 16
+        .padding(.vertical, 14) // Reduced from 18 to 14
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(red: 0.08, green: 0.08, blue: 0.12))
+            RoundedRectangle(cornerRadius: 16) // Reduced from 20 to 16
+                .fill(Color(red: 0.06, green: 0.06, blue: 0.10))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(color.opacity(0.3), lineWidth: 1.5)
+                        .stroke(color.opacity(0.4), lineWidth: 1.5) // Reduced stroke
                 )
         )
-        .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 3)
+        .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3) // Reduced shadow
     }
 }
 
@@ -1423,6 +1432,15 @@ class WorkoutStore: ObservableObject {
     
     init() {
         loadWorkouts()
+        
+        // Listen for user changes to reload data
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("UserChanged"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.loadWorkouts()
+        }
     }
     
     func saveWorkout(_ workout: Workout) {

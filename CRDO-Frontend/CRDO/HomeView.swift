@@ -600,11 +600,13 @@ struct RunMapView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 15)
                 .background(Color.black.opacity(0.8))
+                .padding(.bottom, 8) // Reduced extra bottom padding
                 
-                // Enhanced Map
+                // Enhanced Map with better proportions
                 ZStack {
                     Map(coordinateRegion: $region, showsUserLocation: true, userTrackingMode: .constant(.follow))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped() // Ensure clean edges
                     
                     // Live tracking indicator
                     if runManager.isRunning {
@@ -632,12 +634,12 @@ struct RunMapView: View {
                     }
                 }
                 
-                // Compact Stats overlay
-                VStack(spacing: 8) {
+                // Optimized Stats overlay with better proportions
+                VStack(spacing: 8) { // Reduced spacing from 16 to 8
                     Spacer()
                     
                     // Main stats row
-                    HStack(spacing: 12) {
+                    HStack(spacing: 12) { // Reduced spacing from 16 to 12
                         // Current Speed
                         CompactStatCard(
                             title: "CURRENT",
@@ -666,11 +668,11 @@ struct RunMapView: View {
                             color: .purple
                         )
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
+                    .padding(.horizontal, 20) // Reduced from 24 to 20
+                    .padding(.bottom, 8) // Reduced from 12 to 8
                     
                     // Pace and Finish row
-                    HStack(spacing: 16) {
+                    HStack(spacing: 16) { // Reduced spacing from 20 to 16
                         CompactStatCard(
                             title: "PACE",
                             value: UnitConverter.formatPace(runManager.currentRun?.averagePace ?? 0, unitSystem: preferencesManager.preferences.unitSystem),
@@ -679,20 +681,20 @@ struct RunMapView: View {
                         
                         Spacer()
                         
-                        // Enhanced Finish Run Button
+                        // Optimized Finish Run Button
                         Button(action: {
                             runManager.finishRun()
                             dismiss()
                         }) {
-                            HStack(spacing: 8) {
+                            HStack(spacing: 8) { // Reduced spacing
                                 Image(systemName: "stop.circle.fill")
-                                    .font(.system(size: 18, weight: .semibold))
+                                    .font(.system(size: 18, weight: .semibold)) // Reduced size
                                 Text("FINISH RUN")
-                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                    .font(.system(size: 14, weight: .bold, design: .monospaced)) // Reduced size
                             }
                             .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, 20) // Reduced padding
+                            .padding(.vertical, 12) // Reduced padding
                             .background(
                                 LinearGradient(
                                     gradient: Gradient(colors: [Color.red, Color.red.opacity(0.8)]),

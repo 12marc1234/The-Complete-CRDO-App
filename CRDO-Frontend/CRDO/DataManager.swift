@@ -306,6 +306,10 @@ class DataManager: ObservableObject {
     }
     
     func getUserId() -> String? {
+        // Check if we're in guest mode
+        if UserDefaults.standard.bool(forKey: "isGuestMode") {
+            return UserDefaults.standard.string(forKey: "guestUserId")
+        }
         return UserDefaults.standard.string(forKey: userIdKey)
     }
     

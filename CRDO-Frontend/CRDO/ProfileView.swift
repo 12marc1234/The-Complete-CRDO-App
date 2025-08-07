@@ -358,13 +358,17 @@ struct ActionsSection: View {
     
     var body: some View {
         VStack(spacing: 15) {
-            Button("Sign Out") {
-                authTracker.signOut()
+            Button(authTracker.isGuestMode ? "Exit Guest Mode" : "Sign Out") {
+                if authTracker.isGuestMode {
+                    authTracker.exitGuestMode()
+                } else {
+                    authTracker.signOut()
+                }
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 50)
-            .background(Color.red)
+            .background(authTracker.isGuestMode ? Color.orange : Color.red)
             .cornerRadius(25)
             
             Button("DELETE ACCOUNT") {

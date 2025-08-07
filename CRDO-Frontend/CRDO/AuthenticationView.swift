@@ -47,15 +47,76 @@ class AuthenticationTracker: ObservableObject {
     }
     
     func enterGuestMode() {
+        // Clear all existing data first
+        clearAllUserData()
+        
+        // Generate a unique guest ID
+        let guestId = "guest_\(UUID().uuidString)"
+        
         isGuestMode = true
         isAuthenticated = false
         UserDefaults.standard.set(true, forKey: "isGuestMode")
         UserDefaults.standard.set(false, forKey: "isAuthenticated")
+        UserDefaults.standard.set(guestId, forKey: "guestUserId")
+        
+        print("🔐 Entered guest mode with ID: \(guestId)")
+        
+        // Notify other components that user changed
+        NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
+    }
+    
+    private func clearAllUserData() {
+        // Clear all user-specific data
+        let userDefaults = UserDefaults.standard
+        
+        // Clear gems data
+        if let userId = DataManager.shared.getUserId() {
+            let gemsPrefix = "gems_\(userId)_"
+            userDefaults.removeObject(forKey: gemsPrefix + "totalGems")
+            userDefaults.removeObject(forKey: gemsPrefix + "gemsEarnedToday")
+            userDefaults.removeObject(forKey: gemsPrefix + "lastRunDate")
+            userDefaults.removeObject(forKey: gemsPrefix + "dailySecondsCompleted")
+            userDefaults.removeObject(forKey: gemsPrefix + "dailyMinutesGoal")
+        }
+        
+        // Clear workouts data
+        if let userId = DataManager.shared.getUserId() {
+            let workoutsKey = "workouts_\(userId)"
+            userDefaults.removeObject(forKey: workoutsKey)
+        }
+        
+        // Clear guest data if switching from guest mode
+        if let guestId = userDefaults.string(forKey: "guestUserId") {
+            let gemsPrefix = "gems_\(guestId)_"
+            userDefaults.removeObject(forKey: gemsPrefix + "totalGems")
+            userDefaults.removeObject(forKey: gemsPrefix + "gemsEarnedToday")
+            userDefaults.removeObject(forKey: gemsPrefix + "lastRunDate")
+            userDefaults.removeObject(forKey: gemsPrefix + "dailySecondsCompleted")
+            userDefaults.removeObject(forKey: gemsPrefix + "dailyMinutesGoal")
+            
+            let workoutsKey = "workouts_\(guestId)"
+            userDefaults.removeObject(forKey: workoutsKey)
+        }
+        
+        // Clear other user data
+        userDefaults.removeObject(forKey: "userData")
+        userDefaults.removeObject(forKey: "userPreferences")
+        
+        print("🧹 Cleared all user data")
     }
     
     func exitGuestMode() {
+        // Clear all guest data
+        clearAllUserData()
+        
         isGuestMode = false
         UserDefaults.standard.set(false, forKey: "isGuestMode")
+        UserDefaults.standard.removeObject(forKey: "guestUserId")
+        
+        print("🔐 Exited guest mode and cleared all data")
+        
+        // Notify other components that user changed
+        NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
     }
     
     func signUp(email: String, password: String, firstName: String, lastName: String) {
@@ -90,8 +151,12 @@ class AuthenticationTracker: ObservableObject {
                             UserDefaults.standard.set(userData, forKey: "userData")
                         }
                         
-                        // Reload local data for the new user
+                        // Clear any existing data and reload for the new user
+                        self.clearAllUserData()
                         self.reloadLocalData()
+                        
+                        // Notify other components that user changed
+                        NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
                     }
                 }
             )
@@ -137,8 +202,12 @@ class AuthenticationTracker: ObservableObject {
                             print("🔐 Warning: No current user in DataManager")
                         }
                         
-                        // Reload local data for the new user
+                        // Clear any existing data and reload for the new user
+                        self.clearAllUserData()
                         self.reloadLocalData()
+                        
+                        // Notify other components that user changed
+                        NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
                     }
                 }
             )
@@ -149,12 +218,17 @@ class AuthenticationTracker: ObservableObject {
         isAuthenticated = false
         currentUser = nil
         
-        // Clear local data for the current user
-        clearLocalData()
+        // Clear all user data
+        clearAllUserData()
         
         // Clear authentication data
         UserDefaults.standard.set(false, forKey: "isAuthenticated")
         UserDefaults.standard.removeObject(forKey: "userData")
+        
+        print("🔐 User signed out and all data cleared")
+        
+        // Notify other components that user changed
+        NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
     }
     
         private func clearLocalData() {

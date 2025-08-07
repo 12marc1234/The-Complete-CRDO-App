@@ -152,6 +152,21 @@ class NetworkService: ObservableObject {
                 receiveCompletion: { completion in
                     if case .failure(let error) = completion {
                         print("❌ Login error: \(error)")
+                        
+                        // Check for specific network errors
+                        if let urlError = error as? URLError {
+                            switch urlError.code {
+                            case .cannotConnectToHost:
+                                print("❌ Cannot connect to backend server. Please check if the server is running.")
+                            case .timedOut:
+                                print("❌ Connection timed out. Please check your network connection.")
+                            case .notConnectedToInternet:
+                                print("❌ No internet connection. Please check your network.")
+                            default:
+                                print("❌ Network error: \(urlError.localizedDescription)")
+                            }
+                        }
+                        
                         if let decodingError = error as? DecodingError {
                             switch decodingError {
                             case .keyNotFound(let key, let context):
