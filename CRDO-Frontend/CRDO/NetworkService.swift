@@ -371,12 +371,15 @@ class MockUserDatabase {
     static let shared = MockUserDatabase()
     
     private var users: [MockUser] = []
+    private let userDefaultsKey = "mockUsers"
     
     private init() {
         print("🏗️ MockUserDatabase singleton being initialized...")
+        
+        // CRITICAL FIX: Load users first, before any other operations
         loadUsers()
         
-        // Only add default test users if no users exist
+        // Only add default test users if no users exist AND we're in development mode
         if users.isEmpty {
             print("📝 No users found, creating default test users...")
             // Create some test users
@@ -401,13 +404,65 @@ class MockUserDatabase {
             saveUsers()
         } else {
             print("📝 Found \(users.count) existing users in database")
+            print("📝 Users: \(users.map { $0.email })")
+        }
+        
+        // CRITICAL FIX: Verify data integrity after initialization
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.verifyDatabaseIntegrity()
         }
     }
     
+    // MARK: - Database Integrity Verification
+    
+    private func verifyDatabaseIntegrity() {
+        print("🔍 VERIFYING DATABASE INTEGRITY...")
+        
+        // Check if users are in memory
+        print("  - Users in memory: \(users.count)")
+        print("  - Users in memory: \(users.map { $0.email })")
+        
+        // Check if users are in UserDefaults
+        if let data = UserDefaults.standard.data(forKey: userDefaultsKey) {
+            if let loadedUsers = try? JSONDecoder().decode([MockUser].self, from: data) {
+                print("  - Users in UserDefaults: \(loadedUsers.count)")
+                print("  - Users in UserDefaults: \(loadedUsers.map { $0.email })")
+                
+                // Check for consistency
+                if users.count != loadedUsers.count {
+                    print("⚠️ WARNING: Inconsistency between memory and UserDefaults!")
+                    print("  - Memory: \(users.count) users")
+                    print("  - UserDefaults: \(loadedUsers.count) users")
+                    
+                    // Fix inconsistency by reloading from UserDefaults
+                    users = loadedUsers
+                    print("  - Fixed inconsistency by reloading from UserDefaults")
+                }
+            } else {
+                print("❌ ERROR: Could not decode users from UserDefaults")
+            }
+        } else {
+            print("  - No data in UserDefaults")
+        }
+        
+        print("🔍 DATABASE INTEGRITY VERIFICATION COMPLETE")
+    }
+    
     func addUser(_ user: MockUser) {
+        // Check if user already exists
+        if let existingUser = getMockUser(email: user.email) {
+            print("⚠️ User already exists: \(existingUser.email)")
+            return
+        }
+        
         users.append(user)
         saveUsers() // Save to UserDefaults immediately
         print("👤 Added user: \(user.email) - Total users: \(users.count)")
+        
+        // Verify the user was actually saved
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.verifyUserExists(email: user.email)
+        }
     }
     
     func addUser(user: User, password: String) {
@@ -419,14 +474,13 @@ class MockUserDatabase {
             lastName: user.lastName ?? "",
             fullName: user.fullName ?? ""
         )
-        users.append(mockUser)
-        saveUsers() // Save to UserDefaults immediately
-        print("👤 Added user: \(user.email) - Total users: \(users.count)")
+        addUser(mockUser)
     }
     
     func verifyPassword(email: String, password: String) -> Bool {
         guard let mockUser = getMockUser(email: email) else {
-            print("❌ Password verification failed: User not found")
+            print("❌ Password verification failed: User not found for email: \(email)")
+            print("❌ Available users: \(users.map { $0.email })")
             return false
         }
         
@@ -440,18 +494,44 @@ class MockUserDatabase {
         print("🔍 Email length: \(email.count)")
         print("🔍 Available users: \(users.map { $0.email })")
         
+        // CRITICAL FIX: Reload from UserDefaults if memory is empty but UserDefaults has data
+        if users.isEmpty {
+            print("🔍 Memory is empty, checking UserDefaults...")
+            loadUsers()
+        }
+        
         // Check each user individually for debugging
         for user in users {
-            let userEmailLower = user.email.lowercased()
-            let inputEmailLower = email.lowercased()
+            let userEmailLower = user.email.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            let inputEmailLower = email.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
             print("🔍 Comparing: '\(userEmailLower)' with '\(inputEmailLower)' - Match: \(userEmailLower == inputEmailLower)")
         }
         
-        let user = users.first { $0.email.lowercased() == email.lowercased() }
+        let user = users.first { 
+            $0.email.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == 
+            email.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) 
+        }
+        
         if let foundUser = user {
             print("✅ Found user: \(foundUser.email)")
         } else {
             print("❌ User not found for email: \(email)")
+            print("❌ Current users in database: \(users.map { $0.email })")
+            
+            // CRITICAL FIX: Double-check UserDefaults if user not found in memory
+            print("🔍 Double-checking UserDefaults for user...")
+            if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
+               let loadedUsers = try? JSONDecoder().decode([MockUser].self, from: data) {
+                let userInDefaults = loadedUsers.first { 
+                    $0.email.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == 
+                    email.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) 
+                }
+                if let foundInDefaults = userInDefaults {
+                    print("✅ Found user in UserDefaults but not in memory - fixing inconsistency")
+                    users = loadedUsers
+                    return foundInDefaults
+                }
+            }
         }
         return user
     }
@@ -481,9 +561,14 @@ class MockUserDatabase {
         return users.count
     }
     
+    func verifyUserExists(email: String) {
+        let exists = userExists(email: email)
+        print("🔍 Verification: User \(email) exists: \(exists)")
+    }
+    
     func debugUserDefaults() {
         print("🔍 DEBUG: Checking UserDefaults for mockUsers...")
-        if let data = UserDefaults.standard.data(forKey: "mockUsers") {
+        if let data = UserDefaults.standard.data(forKey: userDefaultsKey) {
             print("🔍 DEBUG: Found data in UserDefaults, size: \(data.count) bytes")
             if let loadedUsers = try? JSONDecoder().decode([MockUser].self, from: data) {
                 print("🔍 DEBUG: Successfully decoded \(loadedUsers.count) users from UserDefaults")
@@ -492,7 +577,7 @@ class MockUserDatabase {
                 print("🔍 DEBUG: Failed to decode users from UserDefaults data")
             }
         } else {
-            print("🔍 DEBUG: No data found in UserDefaults for key 'mockUsers'")
+            print("🔍 DEBUG: No data found in UserDefaults for key '\(userDefaultsKey)'")
         }
         print("🔍 DEBUG: Current users in memory: \(users.count)")
         print("🔍 DEBUG: Users in memory: \(users.map { $0.email })")
@@ -503,10 +588,15 @@ class MockUserDatabase {
     private func saveUsers() {
         print("💾 Attempting to save \(users.count) users...")
         if let encoded = try? JSONEncoder().encode(users) {
-            UserDefaults.standard.set(encoded, forKey: "mockUsers")
+            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
             UserDefaults.standard.synchronize() // Force immediate save
             print("💾 Successfully saved \(users.count) users to UserDefaults")
             print("💾 Users saved: \(users.map { $0.email })")
+            
+            // Verify the save worked
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.verifySave()
+            }
         } else {
             print("❌ Failed to encode users for saving")
         }
@@ -514,7 +604,7 @@ class MockUserDatabase {
     
     private func loadUsers() {
         print("📱 Attempting to load users from UserDefaults...")
-        if let data = UserDefaults.standard.data(forKey: "mockUsers") {
+        if let data = UserDefaults.standard.data(forKey: userDefaultsKey) {
             print("📱 Found data in UserDefaults, attempting to decode...")
             if let loadedUsers = try? JSONDecoder().decode([MockUser].self, from: data) {
                 users = loadedUsers
@@ -528,6 +618,73 @@ class MockUserDatabase {
             print("📱 No saved users found in UserDefaults, starting with empty database")
             users = []
         }
+    }
+    
+    private func verifySave() {
+        if let data = UserDefaults.standard.data(forKey: userDefaultsKey) {
+            if let loadedUsers = try? JSONDecoder().decode([MockUser].self, from: data) {
+                print("✅ Save verification successful: \(loadedUsers.count) users in UserDefaults")
+            } else {
+                print("❌ Save verification failed: Could not decode saved data")
+            }
+        } else {
+            print("❌ Save verification failed: No data found in UserDefaults")
+        }
+    }
+    
+    // MARK: - Debug Methods
+    
+    func clearAllUsers() {
+        print("🗑️ Clearing all users from MockUserDatabase")
+        users.removeAll()
+        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        UserDefaults.standard.synchronize()
+        print("🗑️ All users cleared")
+    }
+    
+    func listAllUsers() {
+        print("📋 Current users in MockUserDatabase:")
+        for (index, user) in users.enumerated() {
+            print("  \(index + 1). \(user.email) (\(user.fullName))")
+        }
+    }
+    
+    // MARK: - Recovery Methods
+    
+    func forceReloadFromUserDefaults() {
+        print("🔄 Force reloading from UserDefaults...")
+        loadUsers()
+        print("🔄 Reload complete. Users in memory: \(users.count)")
+        print("🔄 Users in memory: \(users.map { $0.email })")
+    }
+    
+    func ensureDatabasePreservation() {
+        print("💾 Ensuring database preservation...")
+        
+        // Force save current state to UserDefaults
+        saveUsers()
+        
+        // Verify the save worked
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.verifySave()
+        }
+        
+        print("💾 Database preservation complete")
+    }
+    
+    func repairDatabase() {
+        print("🔧 Repairing database...")
+        
+        // Clear memory
+        users.removeAll()
+        
+        // Reload from UserDefaults
+        loadUsers()
+        
+        // Save back to ensure consistency
+        saveUsers()
+        
+        print("🔧 Database repair complete")
     }
 }
 

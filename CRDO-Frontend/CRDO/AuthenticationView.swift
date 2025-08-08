@@ -152,6 +152,10 @@ class AuthenticationTracker: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         
+        // CRITICAL FIX: Force reload mock database before attempting login
+        let mockDatabase = MockUserDatabase.shared
+        mockDatabase.forceReloadFromUserDefaults()
+        
         Task {
             await SupabaseManager.shared.signIn(email: email, password: password)
             

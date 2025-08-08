@@ -208,11 +208,48 @@ class SupabaseManager: ObservableObject {
             return
         }
         
-        // Check if user exists in mock database
+        // CRITICAL FIX: Force reload mock database before checking
         let mockDatabase = MockUserDatabase.shared
+        mockDatabase.forceReloadFromUserDefaults()
+        
+        // Debug: List all users in mock database
+        mockDatabase.listAllUsers()
+        
+        // Check if user exists in mock database
         guard let existingUser = mockDatabase.getUser(email: email) else {
             errorMessage = "No account found with this email"
             isAuthenticated = false
+            print("❌ Mock signin failed: No account found for \(email)")
+            
+            // CRITICAL FIX: Try to repair database and check again
+            print("🔧 Attempting database repair...")
+            mockDatabase.repairDatabase()
+            
+            // Check again after repair
+            if let repairedUser = mockDatabase.getUser(email: email) {
+                print("✅ Found user after database repair!")
+                
+                // Verify password
+                guard mockDatabase.verifyPassword(email: email, password: password) else {
+                    errorMessage = "Incorrect password"
+                    isAuthenticated = false
+                    print("❌ Mock signin failed: Incorrect password for \(email)")
+                    return
+                }
+                
+                // Set authentication state
+                currentUser = repairedUser
+                isAuthenticated = true
+                errorMessage = nil
+                
+                // Save mock auth token
+                DataManager.shared.saveAuthToken("mock_token_\(repairedUser.id)")
+                
+                print("✅ Mock signin successful for: \(email) after database repair")
+                return
+            } else {
+                print("❌ User still not found after database repair")
+            }
             return
         }
         
@@ -220,6 +257,7 @@ class SupabaseManager: ObservableObject {
         guard mockDatabase.verifyPassword(email: email, password: password) else {
             errorMessage = "Incorrect password"
             isAuthenticated = false
+            print("❌ Mock signin failed: Incorrect password for \(email)")
             return
         }
         
@@ -234,8 +272,109 @@ class SupabaseManager: ObservableObject {
         print("✅ Mock signin successful for: \(email)")
     }
     
+    // MARK: - Debug Methods
+    
+    func debugAuthentication() {
+        print("🔍 DEBUG: Authentication Status")
+        print("  - Is Authenticated: \(isAuthenticated)")
+        print("  - Current User: \(currentUser?.email ?? "None")")
+        print("  - Auth Token: \(DataManager.shared.getAuthToken() ?? "None")")
+        
+        let mockDatabase = MockUserDatabase.shared
+        print("  - Mock Database Users: \(mockDatabase.getUserCount())")
+        mockDatabase.listAllUsers()
+    }
+    
+    func clearMockDatabase() {
+        let mockDatabase = MockUserDatabase.shared
+        mockDatabase.clearAllUsers()
+        print("🗑️ Mock database cleared")
+    }
+    
+    func testMockAuthentication(email: String, password: String) {
+        print("🧪 Testing mock authentication for: \(email)")
+        let mockDatabase = MockUserDatabase.shared
+        
+        let userExists = mockDatabase.userExists(email: email)
+        print("  - User exists: \(userExists)")
+        
+        if userExists {
+            let passwordValid = mockDatabase.verifyPassword(email: email, password: password)
+            print("  - Password valid: \(passwordValid)")
+        }
+    }
+    
+    // MARK: - Multi-Account Testing
+    
+    func testMultiAccountScenario() {
+        print("🧪 Testing multi-account scenario...")
+        let mockDatabase = MockUserDatabase.shared
+        
+        print("📋 Current users in database:")
+        mockDatabase.listAllUsers()
+        
+        print("🔍 Testing database integrity...")
+        mockDatabase.debugUserDefaults()
+        
+        print("🧪 Multi-account test complete")
+    }
+    
+    func simulateSignOutAndSignIn(email: String, password: String) {
+        print("🧪 Simulating sign out and sign in for: \(email)")
+        
+        // Step 1: Check if user exists before sign out
+        let mockDatabase = MockUserDatabase.shared
+        print("📋 Users before sign out:")
+        mockDatabase.listAllUsers()
+        
+        let userExistsBefore = mockDatabase.userExists(email: email)
+        print("  - User exists before sign out: \(userExistsBefore)")
+        
+        // Step 2: Simulate sign out
+        print("🔐 Simulating sign out...")
+        currentUser = nil
+        isAuthenticated = false
+        DataManager.shared.clearAuthToken()
+        UserDefaults.standard.set(false, forKey: "isAuthenticated")
+        UserDefaults.standard.removeObject(forKey: "userData")
+        
+        // Step 3: Ensure database preservation
+        mockDatabase.ensureDatabasePreservation()
+        
+        // Step 4: Check if user still exists after sign out
+        print("📋 Users after sign out:")
+        mockDatabase.listAllUsers()
+        
+        let userExistsAfter = mockDatabase.userExists(email: email)
+        print("  - User exists after sign out: \(userExistsAfter)")
+        
+        // Step 5: Simulate sign in attempt
+        print("🔐 Simulating sign in attempt...")
+        mockDatabase.forceReloadFromUserDefaults()
+        
+        let userExistsAfterReload = mockDatabase.userExists(email: email)
+        print("  - User exists after reload: \(userExistsAfterReload)")
+        
+        if userExistsAfterReload {
+            let passwordValid = mockDatabase.verifyPassword(email: email, password: password)
+            print("  - Password valid: \(passwordValid)")
+        }
+        
+        print("🧪 Simulation complete")
+    }
+    
     @MainActor
     func signOut() async {
+        print("🔐 Starting sign out process...")
+        
+        // Debug: Check mock database before sign out
+        let mockDatabase = MockUserDatabase.shared
+        print("🔍 Mock database before sign out:")
+        mockDatabase.listAllUsers()
+        
+        // CRITICAL FIX: Ensure mock database is preserved before clearing auth data
+        mockDatabase.ensureDatabasePreservation()
+        
         // Clear local data
         currentUser = nil
         isAuthenticated = false
@@ -244,11 +383,18 @@ class SupabaseManager: ObservableObject {
         // Clear auth token
         DataManager.shared.clearAuthToken()
         
-        // Clear UserDefaults
+        // Clear UserDefaults (but preserve mock database)
         UserDefaults.standard.set(false, forKey: "isAuthenticated")
         UserDefaults.standard.removeObject(forKey: "userData")
         
-        print("🔐 User signed out")
+        // CRITICAL FIX: Force reload to ensure mock database is still accessible
+        mockDatabase.forceReloadFromUserDefaults()
+        
+        print("🔐 User signed out - mock database preserved")
+        
+        // Debug: Check mock database after sign out
+        print("🔍 Mock database after sign out:")
+        mockDatabase.listAllUsers()
     }
     
     @MainActor
