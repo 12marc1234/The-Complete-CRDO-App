@@ -353,64 +353,17 @@ class NetworkService: ObservableObject {
 
 // MARK: - Response Models
 
-struct User: Codable {
+struct MockUser: Codable {
     let id: String
     let email: String
-    let firstName: String?
-    let lastName: String?
-    let fullName: String?
-    var bio: String? // New field for user bio
-    
-    // Custom initializer to handle missing fields
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        email = try container.decode(String.self, forKey: .email)
-        // These fields are optional and may not be present in backend response
-        firstName = try container.decodeIfPresent(String.self, forKey: .firstName) ?? nil
-        lastName = try container.decodeIfPresent(String.self, forKey: .lastName) ?? nil
-        fullName = try container.decodeIfPresent(String.self, forKey: .fullName) ?? nil
-        bio = try container.decodeIfPresent(String.self, forKey: .bio) ?? nil
-    }
-    
-    // Convenience initializer for creating User from backend data
-    init(id: String, email: String, firstName: String? = nil, lastName: String? = nil, fullName: String? = nil, bio: String? = nil) {
-        self.id = id
-        self.email = email
-        self.firstName = firstName
-        self.lastName = lastName
-        self.fullName = fullName
-        self.bio = bio
-    }
+    let password: String
+    let firstName: String
+    let lastName: String
+    let fullName: String
 }
 
-// MARK: - Authentication Errors
-
-enum AuthError: LocalizedError {
-    case invalidEmail
-    case invalidPassword
-    case userNotFound
-    case wrongPassword
-    case emailAlreadyExists
-    case weakPassword
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidEmail:
-            return "Please enter a valid email address"
-        case .invalidPassword:
-            return "Password must be at least 6 characters"
-        case .userNotFound:
-            return "No account found with this email"
-        case .wrongPassword:
-            return "Incorrect password"
-        case .emailAlreadyExists:
-            return "An account with this email already exists"
-        case .weakPassword:
-            return "Password is too weak"
-        }
-    }
-}
+// Note: AuthResponse, Session, SessionUser, Identity, IdentityData, AppMetadata, and UserMetadata 
+// are now defined in SupabaseManager.swift to avoid duplicate definitions
 
 // MARK: - Mock User Database
 
@@ -576,100 +529,6 @@ class MockUserDatabase {
             users = []
         }
     }
-}
-
-struct MockUser: Codable {
-    let id: String
-    let email: String
-    let password: String
-    let firstName: String
-    let lastName: String
-    let fullName: String
-}
-
-struct AuthResponse: Codable {
-    let message: String
-    let user: User?
-    let session: Session?
-}
-
-struct Session: Codable {
-    let access_token: String?
-    let refresh_token: String?
-    let token_type: String?
-    let expires_in: Int?
-    let expires_at: Int?
-    let user: SessionUser?
-}
-
-struct SessionUser: Codable {
-    let id: String?
-    let aud: String?
-    let role: String?
-    let email: String?
-    let email_confirmed_at: String?
-    let phone: String?
-    let last_sign_in_at: String?
-    let app_metadata: AppMetadata?
-    let user_metadata: UserMetadata?
-    let identities: [Identity]?
-    let created_at: String?
-    let updated_at: String?
-    let is_anonymous: Bool?
-    
-    // Convenience initializer for mock data
-    init(id: String?, email: String?, firstName: String? = nil, lastName: String? = nil, fullName: String? = nil) {
-        self.id = id
-        self.aud = "authenticated"
-        self.role = "authenticated"
-        self.email = email
-        self.email_confirmed_at = nil
-        self.phone = nil
-        self.last_sign_in_at = nil
-        self.app_metadata = nil
-        self.user_metadata = nil
-        self.identities = nil
-        self.created_at = nil
-        self.updated_at = nil
-        self.is_anonymous = false
-    }
-}
-
-struct Identity: Codable {
-    let identity_id: String?
-    let id: String?
-    let user_id: String?
-    let identity_data: IdentityData?
-    let provider: String?
-    let last_sign_in_at: String?
-    let created_at: String?
-    let updated_at: String?
-    let email: String?
-}
-
-struct IdentityData: Codable {
-    let email: String?
-    let email_verified: Bool?
-    let first_name: String?
-    let full_name: String?
-    let last_name: String?
-    let phone_verified: Bool?
-    let sub: String?
-}
-
-struct AppMetadata: Codable {
-    let provider: String?
-    let providers: [String]?
-}
-
-struct UserMetadata: Codable {
-    let email: String?
-    let email_verified: Bool?
-    let first_name: String?
-    let full_name: String?
-    let last_name: String?
-    let phone_verified: Bool?
-    let sub: String?
 }
 
 struct LogoutResponse: Codable {

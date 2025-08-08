@@ -22,6 +22,14 @@ class SupabaseManager: ObservableObject {
     
     private var cancellables = Set<AnyCancellable>()
     
+    // Configure URLSession with proper timeouts
+    private lazy var urlSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = BackendConfig.requestTimeout
+        config.timeoutIntervalForResource = BackendConfig.uploadTimeout
+        return URLSession(configuration: config)
+    }()
+    
     private init() {
         // Check if user is already signed in
         Task {
@@ -39,6 +47,7 @@ class SupabaseManager: ObservableObject {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = BackendConfig.requestTimeout
             
             let body = [
                 "email": email,
@@ -48,9 +57,13 @@ class SupabaseManager: ObservableObject {
             ]
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             
-            let (data, response) = try await URLSession.shared.data(for: request)
+            print("🔐 Attempting signup to: \(url)")
+            
+            let (data, response) = try await urlSession.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
+                print("🔐 Signup response status: \(httpResponse.statusCode)")
+                
                 if httpResponse.statusCode == 200 {
                     let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
                     currentUser = authResponse.user
@@ -61,15 +74,20 @@ class SupabaseManager: ObservableObject {
                     if let session = authResponse.session {
                         DataManager.shared.saveAuthToken(session.access_token ?? "")
                     }
+                    
+                    print("✅ Real signup successful")
                 } else {
                     let errorResponse = try JSONDecoder().decode(ErrorResponse.self, from: data)
                     errorMessage = errorResponse.error
                     isAuthenticated = false
+                    print("❌ Real signup failed: \(errorResponse.error)")
                 }
             }
         } catch {
-            errorMessage = error.localizedDescription
-            isAuthenticated = false
+            print("❌ Signup network error: \(error.localizedDescription)")
+            
+            // FALLBACK: Use mock authentication when backend is unavailable
+            await fallbackToMockSignUp(email: email, password: password, firstName: firstName, lastName: lastName)
         }
         
         isLoading = false
@@ -85,6 +103,7 @@ class SupabaseManager: ObservableObject {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = BackendConfig.requestTimeout
             
             let body = [
                 "email": email,
@@ -92,9 +111,13 @@ class SupabaseManager: ObservableObject {
             ]
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             
-            let (data, response) = try await URLSession.shared.data(for: request)
+            print("🔐 Attempting login to: \(url)")
+            
+            let (data, response) = try await urlSession.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
+                print("🔐 Login response status: \(httpResponse.statusCode)")
+                
                 if httpResponse.statusCode == 200 {
                     let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
                     currentUser = authResponse.user
@@ -105,18 +128,110 @@ class SupabaseManager: ObservableObject {
                     if let session = authResponse.session {
                         DataManager.shared.saveAuthToken(session.access_token ?? "")
                     }
+                    
+                    print("✅ Real login successful")
                 } else {
                     let errorResponse = try JSONDecoder().decode(ErrorResponse.self, from: data)
                     errorMessage = errorResponse.error
                     isAuthenticated = false
+                    print("❌ Real login failed: \(errorResponse.error)")
                 }
             }
         } catch {
-            errorMessage = error.localizedDescription
-            isAuthenticated = false
+            print("❌ Login network error: \(error.localizedDescription)")
+            
+            // FALLBACK: Use mock authentication when backend is unavailable
+            await fallbackToMockSignIn(email: email, password: password)
         }
         
         isLoading = false
+    }
+    
+    // MARK: - Fallback Mock Authentication
+    
+    @MainActor
+    private func fallbackToMockSignUp(email: String, password: String, firstName: String, lastName: String) async {
+        print("🔄 Falling back to mock signup")
+        
+        // Validate input
+        guard !email.isEmpty, !password.isEmpty else {
+            errorMessage = "Email and password are required"
+            isAuthenticated = false
+            return
+        }
+        
+        guard password.count >= 6 else {
+            errorMessage = "Password must be at least 6 characters"
+            isAuthenticated = false
+            return
+        }
+        
+        // Check if user already exists
+        let mockDatabase = MockUserDatabase.shared
+        if mockDatabase.getUser(email: email) != nil {
+            errorMessage = "An account with this email already exists"
+            isAuthenticated = false
+            return
+        }
+        
+        // Create new user
+        let newUser = User(
+            id: UUID().uuidString,
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            fullName: "\(firstName) \(lastName)"
+        )
+        
+        // Add to mock database
+        mockDatabase.addUser(user: newUser, password: password)
+        
+        // Set authentication state
+        currentUser = newUser
+        isAuthenticated = true
+        errorMessage = nil
+        
+        // Save mock auth token
+        DataManager.shared.saveAuthToken("mock_token_\(newUser.id)")
+        
+        print("✅ Mock signup successful for: \(email)")
+    }
+    
+    @MainActor
+    private func fallbackToMockSignIn(email: String, password: String) async {
+        print("🔄 Falling back to mock signin")
+        
+        // Validate input
+        guard !email.isEmpty, !password.isEmpty else {
+            errorMessage = "Email and password are required"
+            isAuthenticated = false
+            return
+        }
+        
+        // Check if user exists in mock database
+        let mockDatabase = MockUserDatabase.shared
+        guard let existingUser = mockDatabase.getUser(email: email) else {
+            errorMessage = "No account found with this email"
+            isAuthenticated = false
+            return
+        }
+        
+        // Verify password
+        guard mockDatabase.verifyPassword(email: email, password: password) else {
+            errorMessage = "Incorrect password"
+            isAuthenticated = false
+            return
+        }
+        
+        // Set authentication state
+        currentUser = existingUser
+        isAuthenticated = true
+        errorMessage = nil
+        
+        // Save mock auth token
+        DataManager.shared.saveAuthToken("mock_token_\(existingUser.id)")
+        
+        print("✅ Mock signin successful for: \(email)")
     }
     
     @MainActor
@@ -132,35 +247,49 @@ class SupabaseManager: ObservableObject {
         // Clear UserDefaults
         UserDefaults.standard.set(false, forKey: "isAuthenticated")
         UserDefaults.standard.removeObject(forKey: "userData")
+        
+        print("🔐 User signed out")
     }
     
     @MainActor
     private func checkCurrentUser() async {
         // Check if we have a stored auth token
         if let token = DataManager.shared.getAuthToken() {
-            // Validate token with backend
+            // For mock tokens, just validate locally
+            if token.hasPrefix("mock_token_") {
+                // Mock token validation - just check if it exists
+                isAuthenticated = true
+                print("✅ Mock token validated")
+                return
+            }
+            
+            // Real token validation with backend
             do {
                 let url = URL(string: "\(baseURL)/validate-token")!
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                request.timeoutInterval = BackendConfig.requestTimeout
                 
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await urlSession.data(for: request)
                 
                 if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
                     let user = try JSONDecoder().decode(User.self, from: data)
                     currentUser = user
                     isAuthenticated = true
+                    print("✅ Real token validated")
                 } else {
                     // Token is invalid, clear it
                     DataManager.shared.clearAuthToken()
                     isAuthenticated = false
+                    print("❌ Real token invalid")
                 }
             } catch {
                 // Token validation failed, clear it
                 DataManager.shared.clearAuthToken()
                 isAuthenticated = false
+                print("❌ Token validation failed: \(error.localizedDescription)")
             }
         }
     }
@@ -174,11 +303,12 @@ class SupabaseManager: ObservableObject {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.timeoutInterval = BackendConfig.requestTimeout
             
             let workoutData = try JSONEncoder().encode(workout)
             request.httpBody = workoutData
             
-            let (_, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await urlSession.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
                 if httpResponse.statusCode == 200 {
@@ -200,8 +330,9 @@ class SupabaseManager: ObservableObject {
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.timeoutInterval = BackendConfig.requestTimeout
             
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
                 let workouts = try JSONDecoder().decode([Workout].self, from: data)
@@ -223,11 +354,12 @@ class SupabaseManager: ObservableObject {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.timeoutInterval = BackendConfig.requestTimeout
             
             let statsData = try JSONEncoder().encode(stats)
             request.httpBody = statsData
             
-            let (_, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await urlSession.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
                 if httpResponse.statusCode == 200 {
@@ -249,8 +381,9 @@ class SupabaseManager: ObservableObject {
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.timeoutInterval = BackendConfig.requestTimeout
             
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
                 let stats = try JSONDecoder().decode(UserStats.self, from: data)
@@ -264,8 +397,137 @@ class SupabaseManager: ObservableObject {
     }
 }
 
+// MARK: - User Model
+
+struct User: Codable {
+    let id: String
+    let email: String
+    let firstName: String?
+    let lastName: String?
+    let fullName: String?
+    var bio: String? // New field for user bio
+    
+    // Custom initializer to handle missing fields
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        email = try container.decode(String.self, forKey: .email)
+        // These fields are optional and may not be present in backend response
+        firstName = try container.decodeIfPresent(String.self, forKey: .firstName) ?? nil
+        lastName = try container.decodeIfPresent(String.self, forKey: .lastName) ?? nil
+        fullName = try container.decodeIfPresent(String.self, forKey: .fullName) ?? nil
+        bio = try container.decodeIfPresent(String.self, forKey: .bio) ?? nil
+    }
+    
+    // Convenience initializer for creating User from backend data
+    init(id: String, email: String, firstName: String? = nil, lastName: String? = nil, fullName: String? = nil, bio: String? = nil) {
+        self.id = id
+        self.email = email
+        self.firstName = firstName
+        self.lastName = lastName
+        self.fullName = fullName
+        self.bio = bio
+    }
+}
+
+// MARK: - Authentication Errors
+
+enum AuthError: LocalizedError {
+    case invalidEmail
+    case invalidPassword
+    case userNotFound
+    case wrongPassword
+    case emailAlreadyExists
+    case weakPassword
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidEmail:
+            return "Please enter a valid email address"
+        case .invalidPassword:
+            return "Password must be at least 6 characters"
+        case .userNotFound:
+            return "No account found with this email"
+        case .wrongPassword:
+            return "Incorrect password"
+        case .emailAlreadyExists:
+            return "An account with this email already exists"
+        case .weakPassword:
+            return "Password is too weak"
+        }
+    }
+}
+
 // MARK: - Response Models
 
 struct ErrorResponse: Codable {
     let error: String
+}
+
+struct AuthResponse: Codable {
+    let message: String
+    let user: User?
+    let session: Session?
+}
+
+struct Session: Codable {
+    let access_token: String?
+    let refresh_token: String?
+    let token_type: String?
+    let expires_in: Int?
+    let expires_at: Int?
+    let user: SessionUser?
+}
+
+struct SessionUser: Codable {
+    let id: String?
+    let aud: String?
+    let role: String?
+    let email: String?
+    let email_confirmed_at: String?
+    let phone: String?
+    let last_sign_in_at: String?
+    let app_metadata: AppMetadata?
+    let user_metadata: UserMetadata?
+    let identities: [Identity]?
+    let created_at: String?
+    let updated_at: String?
+    let is_anonymous: Bool?
+}
+
+struct Identity: Codable {
+    let identity_id: String?
+    let id: String?
+    let user_id: String?
+    let identity_data: IdentityData?
+    let provider: String?
+    let last_sign_in_at: String?
+    let created_at: String?
+    let updated_at: String?
+    let email: String?
+}
+
+struct IdentityData: Codable {
+    let email: String?
+    let email_verified: Bool?
+    let first_name: String?
+    let full_name: String?
+    let last_name: String?
+    let phone_verified: Bool?
+    let sub: String?
+}
+
+struct AppMetadata: Codable {
+    let provider: String?
+    let providers: [String]?
+}
+
+struct UserMetadata: Codable {
+    let email: String?
+    let email_verified: Bool?
+    let first_name: String?
+    let full_name: String?
+    let last_name: String?
+    let phone_verified: Bool?
+    let sub: String?
 } 

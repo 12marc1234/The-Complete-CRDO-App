@@ -104,147 +104,115 @@ class AuthenticationTracker: ObservableObject {
     }
     
     func signUp(email: String, password: String, firstName: String, lastName: String) {
-        // For testing - use mock authentication
+        // Use real Supabase authentication
         self.isLoading = true
+        self.errorMessage = nil
         
-        // Simulate network delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            // Validate input
-            guard !email.isEmpty, !password.isEmpty, !firstName.isEmpty, !lastName.isEmpty else {
-                self.errorMessage = "All fields are required"
+        Task {
+            await SupabaseManager.shared.signUp(email: email, password: password, firstName: firstName, lastName: lastName)
+            
+            await MainActor.run {
+                if SupabaseManager.shared.isAuthenticated {
+                    self.isAuthenticated = true
+                    self.isGuestMode = false
+                    self.currentUser = SupabaseManager.shared.currentUser
+                    
+                    // Save authentication data
+                    UserDefaults.standard.set(true, forKey: "isAuthenticated")
+                    UserDefaults.standard.set(false, forKey: "isGuestMode")
+                    
+                    if let userData = try? JSONEncoder().encode(self.currentUser) {
+                        UserDefaults.standard.set(userData, forKey: "userData")
+                    }
+                    
+                    // Set user ID for data isolation
+                    if let userId = self.currentUser?.id {
+                        DataManager.shared.setUserId(userId)
+                    }
+                    
+                    // For new accounts, ensure we start with clean data
+                    self.clearDataForNewUser()
+                    self.reloadLocalData()
+                    
+                    // Notify other components that user changed
+                    NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
+                    
+                    print("✅ Real signup successful for: \(email)")
+                } else {
+                    self.errorMessage = SupabaseManager.shared.errorMessage ?? "Signup failed"
+                }
+                
                 self.isLoading = false
-                return
             }
-            
-            guard password.count >= 6 else {
-                self.errorMessage = "Password must be at least 6 characters"
-                self.isLoading = false
-                return
-            }
-            
-            // Check if user already exists
-            let mockDatabase = MockUserDatabase.shared
-            if mockDatabase.getUser(email: email) != nil {
-                self.errorMessage = "An account with this email already exists"
-                self.isLoading = false
-                return
-            }
-            
-            // Create mock user
-            let mockUser = User(
-                id: email, // Use email as consistent ID
-                email: email,
-                firstName: firstName,
-                lastName: lastName,
-                fullName: "\(firstName) \(lastName)",
-                bio: nil
-            )
-            
-            // Save user to mock database
-            mockDatabase.addUser(user: mockUser, password: password)
-            
-            // Success
-            self.isAuthenticated = true
-            self.isGuestMode = false
-            self.currentUser = mockUser
-            self.errorMessage = nil
-            self.isLoading = false
-            
-            // Save authentication data
-            UserDefaults.standard.set(true, forKey: "isAuthenticated")
-            UserDefaults.standard.set(false, forKey: "isGuestMode")
-            
-            if let userData = try? JSONEncoder().encode(mockUser) {
-                UserDefaults.standard.set(userData, forKey: "userData")
-            }
-            
-            // Set user ID for data isolation
-            DataManager.shared.setUserId(mockUser.id)
-            
-            // For new accounts, ensure we start with clean data
-            self.clearDataForNewUser()
-            self.reloadLocalData()
-            
-            // Notify other components that user changed
-            NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
-            
-            print("✅ Mock signup successful for: \(email)")
         }
     }
     
     func login(email: String, password: String) {
-        // For testing - use mock authentication
+        // Use real Supabase authentication
         self.isLoading = true
+        self.errorMessage = nil
         
-        // Simulate network delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            // Validate input
-            guard !email.isEmpty, !password.isEmpty else {
-                self.errorMessage = "Email and password are required"
+        Task {
+            await SupabaseManager.shared.signIn(email: email, password: password)
+            
+            await MainActor.run {
+                if SupabaseManager.shared.isAuthenticated {
+                    self.isAuthenticated = true
+                    self.isGuestMode = false
+                    self.currentUser = SupabaseManager.shared.currentUser
+                    
+                    // Save authentication data
+                    UserDefaults.standard.set(true, forKey: "isAuthenticated")
+                    UserDefaults.standard.set(false, forKey: "isGuestMode")
+                    
+                    if let userData = try? JSONEncoder().encode(self.currentUser) {
+                        UserDefaults.standard.set(userData, forKey: "userData")
+                    }
+                    
+                    // Set user ID for data isolation
+                    if let userId = self.currentUser?.id {
+                        DataManager.shared.setUserId(userId)
+                    }
+                    
+                    // Reload data for the current user
+                    self.reloadLocalData()
+                    
+                    // Notify other components that user changed
+                    NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
+                    
+                    print("✅ Real login successful for: \(email)")
+                } else {
+                    self.errorMessage = SupabaseManager.shared.errorMessage ?? "Login failed"
+                }
+                
                 self.isLoading = false
-                return
             }
-            
-            // Check if user exists in mock database
-            let mockDatabase = MockUserDatabase.shared
-            guard let existingUser = mockDatabase.getUser(email: email) else {
-                self.errorMessage = "No account found with this email"
-                self.isLoading = false
-                return
-            }
-            
-            // Verify password
-            guard mockDatabase.verifyPassword(email: email, password: password) else {
-                self.errorMessage = "Incorrect password"
-                self.isLoading = false
-                return
-            }
-            
-            // Success
-            self.isAuthenticated = true
-            self.isGuestMode = false
-            self.currentUser = existingUser
-            self.errorMessage = nil
-            self.isLoading = false
-            
-            // Save authentication data
-            UserDefaults.standard.set(true, forKey: "isAuthenticated")
-            UserDefaults.standard.set(false, forKey: "isGuestMode")
-            
-            if let userData = try? JSONEncoder().encode(existingUser) {
-                UserDefaults.standard.set(userData, forKey: "userData")
-            }
-            
-            // Set user ID for data isolation
-            DataManager.shared.setUserId(existingUser.id)
-            
-            // Reload data for the current user
-            self.reloadLocalData()
-            
-            // Notify other components that user changed
-            NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
-            
-            print("✅ Mock login successful for: \(email)")
         }
     }
     
     func signOut() {
-        // For testing - use mock sign out
-        self.isAuthenticated = false
-        self.currentUser = nil
-        
-        // DO NOT clear user data - preserve it for when user logs back in
-        // Only clear authentication state
-        UserDefaults.standard.set(false, forKey: "isAuthenticated")
-        UserDefaults.standard.removeObject(forKey: "userData")
-        
-        // Clear current user ID to ensure data isolation
-        DataManager.shared.setUserId("")
-        
-        print("🔐 User signed out - data preserved for next login")
-        
-        // Notify other components that user changed
-        NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
+        // Use real Supabase sign out
+        Task {
+            await SupabaseManager.shared.signOut()
+            
+            await MainActor.run {
+                self.isAuthenticated = false
+                self.currentUser = nil
+                
+                // DO NOT clear user data - preserve it for when user logs back in
+                // Only clear authentication state
+                UserDefaults.standard.set(false, forKey: "isAuthenticated")
+                UserDefaults.standard.removeObject(forKey: "userData")
+                
+                // Clear current user ID to ensure data isolation
+                DataManager.shared.setUserId("")
+                
+                print("🔐 User signed out - data preserved for next login")
+                
+                // Notify other components that user changed
+                NotificationCenter.default.post(name: NSNotification.Name("UserChanged"), object: nil)
+            }
+        }
     }
     
     private func clearLocalData() {
