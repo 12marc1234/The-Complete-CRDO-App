@@ -895,6 +895,17 @@ class CityManager: ObservableObject {
         if !buildings.isEmpty {
             saveStateForUndo()
         }
+        
+        // Listen for user changes to reload city data
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("UserChanged"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("🏙️ CityManager: User changed, reloading city data...")
+            self?.loadCityData()
+            self?.objectWillChange.send()
+        }
     }
     
     func purchaseBuilding(_ type: BuildingType, at position: CGPoint) -> Bool {
@@ -985,16 +996,36 @@ class CityManager: ObservableObject {
     }
     
     func saveCityData() {
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        let key = "cityData_\(userId)"
         if let data = try? JSONEncoder().encode(buildings) {
-            UserDefaults.standard.set(data, forKey: "cityData")
+            UserDefaults.standard.set(data, forKey: key)
+            print("🏙️ Saved city data for user: \(userId)")
         }
     }
     
-    private func loadCityData() {
-        if let data = UserDefaults.standard.data(forKey: "cityData"),
+    func loadCityData() {
+        let userId = DataManager.shared.getUserId() ?? "guest"
+        let key = "cityData_\(userId)"
+        if let data = UserDefaults.standard.data(forKey: key),
            let buildings = try? JSONDecoder().decode([Building].self, from: data) {
             self.buildings = buildings
+            print("🏙️ Loaded \(buildings.count) buildings for user: \(userId)")
+        } else {
+            // No data found for this user - start with empty city
+            self.buildings = []
+            print("🏙️ No city data found for user: \(userId) - starting fresh")
         }
+    }
+    
+    func resetCity() {
+        print("🏙️ Resetting city data for new user")
+        buildings.removeAll()
+        undoStack.removeAll()
+        redoStack.removeAll()
+        canUndo = false
+        canRedo = false
+        saveCityData()
     }
 } 
 
@@ -1476,7 +1507,7 @@ class WorkoutStore: ObservableObject {
         return "workouts_\(userId)"
     }
     
-    private func loadWorkouts() {
+    func loadWorkouts() {
         let key = getWorkoutsKey()
         print("📱 loadWorkouts called with key: \(key)")
         
@@ -1489,7 +1520,7 @@ class WorkoutStore: ObservableObject {
         }
     }
     
-    private func saveWorkouts() {
+    func saveWorkouts() {
         let key = getWorkoutsKey()
         print("💾 saveWorkouts called with key: \(key)")
         print("💾 Attempting to save \(workouts.count) workouts")

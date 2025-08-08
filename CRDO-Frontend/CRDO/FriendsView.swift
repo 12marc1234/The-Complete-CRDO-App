@@ -61,7 +61,7 @@ struct FriendsView: View {
                         }
                 }
             }
-            .onChange(of: showingProfile) { isPresented in
+            .onChange(of: showingProfile) { _, isPresented in
                 if !isPresented {
                     selectedFriend = nil
                 }

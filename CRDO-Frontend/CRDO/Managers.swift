@@ -14,8 +14,13 @@ import Combine
 // MARK: - Run Manager
 
 class RunManager: NSObject, ObservableObject {
-    // Static reference to the current instance
-    static var currentInstance: RunManager?
+    // Singleton instance
+    static let shared = RunManager()
+    
+    // Static reference to the current instance (kept for backward compatibility)
+    static var currentInstance: RunManager? {
+        return shared
+    }
     
     @Published var isRunning = false
     @Published var currentRun: RunSession?
@@ -46,14 +51,11 @@ class RunManager: NSObject, ObservableObject {
     private var lastLocation: CLLocation?
     private var speedReadings: [Double] = []
     
-    override init() {
+    private override init() {
         super.init()
         setupLocationManager()
         loadRecentRuns()
         calculateStats()
-        
-        // Set this as the current instance
-        RunManager.currentInstance = self
         
         // Listen for workout changes to update stats
         NotificationCenter.default.addObserver(

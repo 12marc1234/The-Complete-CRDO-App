@@ -941,5 +941,5 @@ struct GemsSection: View {
 }
 
 #Preview {
-    HomeView(runManager: RunManager(), permissionManager: PermissionManager())
+    HomeView(runManager: RunManager.shared, permissionManager: PermissionManager())
 } 

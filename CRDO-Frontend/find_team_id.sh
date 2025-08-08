@@ -1,0 +1,16 @@
+#!/bin/bash
+
+echo "🔍 Finding your Apple Developer Team ID..."
+echo ""
+echo "📋 Steps to find your Team ID:"
+echo "1. Open Xcode"
+echo "2. Go to Xcode → Settings (or Preferences)"
+echo "3. Click 'Accounts' tab"
+echo "4. Select your Apple ID"
+echo "5. Click 'Manage Certificates'"
+echo "6. Look for 'Team ID' (10-character string like ABC123DEF4)"
+echo ""
+echo "💡 Alternative: Go to developer.apple.com → Membership → Team ID"
+echo ""
+echo "Once you have your Team ID, run:"
+echo "sed -i '' 's/YOUR_TEAM_ID_HERE/YOUR_ACTUAL_TEAM_ID/g' CRDO.xcodeproj/project.pbxproj" 

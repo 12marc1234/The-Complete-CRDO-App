@@ -11,7 +11,7 @@ import MapKit
 import CoreLocation
 
 struct RecentRunsView: View {
-    @StateObject private var runManager = RunManager()
+    @ObservedObject private var runManager = RunManager.shared
     @StateObject private var preferencesManager = UserPreferencesManager.shared
     @State private var selectedRun: RunSession?
     @State private var showingRouteDetail = false
@@ -24,7 +24,7 @@ struct RecentRunsView: View {
 struct WorkoutHistoryView: View {
     @ObservedObject private var workoutStore = WorkoutStore.shared
     @ObservedObject private var preferencesManager = UserPreferencesManager.shared
-    @StateObject private var runManager = RunManager()
+    @ObservedObject private var runManager = RunManager.shared
     @Environment(\.dismiss) var dismiss
     @State private var showClearConfirmation = false
     @State private var clearText = ""

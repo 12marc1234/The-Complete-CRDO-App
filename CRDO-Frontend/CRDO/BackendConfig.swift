@@ -23,7 +23,7 @@ struct BackendConfig {
     
     // Current environment - change this to switch between dev and production
     // FOR TESTFLIGHT: Change this to .production
-    static let currentEnvironment: Environment = .development
+    static let currentEnvironment: Environment = .development // Keep as development for now
     
     enum Environment {
         case development

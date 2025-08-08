@@ -10,7 +10,7 @@ import SwiftUI
 
 struct MainAppView: View {
     @ObservedObject var authTracker: AuthenticationTracker
-    @StateObject private var runManager = RunManager()
+    @ObservedObject private var runManager = RunManager.shared
     @StateObject private var permissionManager = PermissionManager()
     @ObservedObject var gemsManager = GemsManager.shared
     @State private var selectedTab = 0

@@ -457,7 +457,32 @@ class MockUserDatabase {
         print("👤 Added user: \(user.email) - Total users: \(users.count)")
     }
     
-    func getUser(email: String) -> MockUser? {
+    func addUser(user: User, password: String) {
+        let mockUser = MockUser(
+            id: user.id,
+            email: user.email,
+            password: password,
+            firstName: user.firstName ?? "",
+            lastName: user.lastName ?? "",
+            fullName: user.fullName ?? ""
+        )
+        users.append(mockUser)
+        saveUsers() // Save to UserDefaults immediately
+        print("👤 Added user: \(user.email) - Total users: \(users.count)")
+    }
+    
+    func verifyPassword(email: String, password: String) -> Bool {
+        guard let mockUser = getMockUser(email: email) else {
+            print("❌ Password verification failed: User not found")
+            return false
+        }
+        
+        let isValid = mockUser.password == password
+        print("🔐 Password verification for \(email): \(isValid ? "✅ Valid" : "❌ Invalid")")
+        return isValid
+    }
+    
+    func getMockUser(email: String) -> MockUser? {
         print("🔍 Looking for user with email: \(email)")
         print("🔍 Email length: \(email.count)")
         print("🔍 Available users: \(users.map { $0.email })")
@@ -478,8 +503,23 @@ class MockUserDatabase {
         return user
     }
     
+    func getUser(email: String) -> User? {
+        guard let mockUser = getMockUser(email: email) else {
+            return nil
+        }
+        
+        return User(
+            id: mockUser.id,
+            email: mockUser.email,
+            firstName: mockUser.firstName,
+            lastName: mockUser.lastName,
+            fullName: mockUser.fullName,
+            bio: nil
+        )
+    }
+    
     func userExists(email: String) -> Bool {
-        let exists = users.contains { $0.email.lowercased() == email.lowercased() }
+        let exists = getMockUser(email: email) != nil
         print("🔍 Checking if user exists: \(email) - \(exists)")
         return exists
     }
